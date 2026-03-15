@@ -1,3 +1,4 @@
+import sys
 import transformers
 import torch
 import random
@@ -58,22 +59,42 @@ def get_query(text):
     else:
         return None
 
+RETRIEVAL_URL = "http://127.0.0.1:8000/retrieve"
+
+
 def search(query: str):
     payload = {
-            "queries": [query],
-            "topk": 3,
-            "return_scores": True
-        }
-    results = requests.post("http://127.0.0.1:8000/retrieve", json=payload).json()['result']
-                
+        "queries": [query],
+        "topk": 3,
+        "return_scores": True,
+    }
+    try:
+        resp = requests.post(RETRIEVAL_URL, json=payload, timeout=30)
+        resp.raise_for_status()
+        results = resp.json()["result"]
+    except requests.exceptions.ConnectionError as e:
+        print(
+            "\n[Error] Retrieval server not reachable at {}.\n"
+            "Start it first in another terminal:\n"
+            "  conda activate retriever\n"
+            "  bash retrieval_launch.sh\n"
+            "See README section 'Inference' and docs/retriever.md for details.\n".format(
+                RETRIEVAL_URL
+            ),
+            file=sys.stderr,
+        )
+        raise SystemExit(1) from e
+    except requests.exceptions.RequestException as e:
+        print("\n[Error] Retrieval request failed: {}".format(e), file=sys.stderr)
+        raise SystemExit(1) from e
+
     def _passages2string(retrieval_result):
-        format_reference = ''
+        format_reference = ""
         for idx, doc_item in enumerate(retrieval_result):
-                        
-            content = doc_item['document']['contents']
+            content = doc_item["document"]["contents"]
             title = content.split("\n")[0]
             text = "\n".join(content.split("\n")[1:])
-            format_reference += f"Doc {idx+1}(Title: {title}) {text}\n"
+            format_reference += "Doc {}(Title: {}) {}\n".format(idx + 1, title, text)
         return format_reference
 
     return _passages2string(results[0])
