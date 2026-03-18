@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>nq_search viewer</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+      :root {
+        --bg: #0b0f1a;
+        --panel: rgba(255, 255, 255, 0.06);
+        --panel2: rgba(255, 255, 255, 0.09);
+        --text: rgba(255, 255, 255, 0.92);
+        --muted: rgba(255, 255, 255, 0.68);
+        --accent: #7c5cff;
+        --accent2: #2be7c7;
+        --danger: #ff5c7a;
+        --border: rgba(255, 255, 255, 0.12);
+        --shadow: 0 18px 60px rgba(0, 0, 0, 0.45);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        height: 100%;
+      }
+      body {
+        margin: 0;
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+        color: var(--text);
+        background: radial-gradient(1200px 800px at 10% 10%, rgba(124, 92, 255, 0.25), transparent 55%),
+          radial-gradient(1000px 700px at 90% 20%, rgba(43, 231, 199, 0.18), transparent 55%),
+          radial-gradient(900px 600px at 40% 90%, rgba(255, 92, 122, 0.14), transparent 60%), var(--bg);
+      }
+      .wrap {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 28px 18px 60px;
+      }
+      header {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 18px;
+      }
+      h1 {
+        margin: 0;
+        font-size: 22px;
+        letter-spacing: 0.2px;
+      }
+      .sub {
+        margin-top: 6px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .controls {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+      .control {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: var(--panel);
+        border: 1px solid var(--border);
+        padding: 10px 12px;
+        border-radius: 12px;
+        box-shadow: var(--shadow);
+      }
+      .control label {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      input,
+      select,
+      button {
+        color: var(--text);
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 10px;
+        padding: 8px 10px;
+        outline: none;
+        font-size: 13px;
+      }
+      input {
+        width: 360px;
+        max-width: 56vw;
+      }
+      button {
+        cursor: pointer;
+        background: linear-gradient(135deg, rgba(124, 92, 255, 0.65), rgba(43, 231, 199, 0.35));
+        border-color: rgba(255, 255, 255, 0.18);
+      }
+      button:disabled {
+        cursor: not-allowed;
+        opacity: 0.55;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: 1.2fr 1fr;
+        gap: 14px;
+        margin-top: 14px;
+      }
+      @media (max-width: 920px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+        header {
+          flex-direction: column;
+          align-items: stretch;
+        }
+        .controls {
+          justify-content: flex-start;
+        }
+      }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 14px;
+        box-shadow: var(--shadow);
+        overflow: hidden;
+      }
+      .card h2 {
+        font-size: 14px;
+        margin: 0 0 10px;
+        color: rgba(255, 255, 255, 0.88);
+        font-weight: 600;
+      }
+      .kpis {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+      }
+      .kpi {
+        background: var(--panel2);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 14px;
+        padding: 10px 12px;
+      }
+      .kpi .t {
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .kpi .v {
+        margin-top: 6px;
+        font-size: 18px;
+        font-weight: 700;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th,
+      td {
+        padding: 10px 10px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        vertical-align: top;
+        font-size: 13px;
+      }
+      th {
+        color: rgba(255, 255, 255, 0.76);
+        text-align: left;
+        font-weight: 600;
+      }
+      .mono {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        font-size: 12px;
+      }
+      .pill {
+        display: inline-block;
+        padding: 2px 8px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(0, 0, 0, 0.18);
+        border-radius: 999px;
+        color: rgba(255, 255, 255, 0.82);
+        font-size: 12px;
+        margin-right: 6px;
+      }
+      .err {
+        color: var(--danger);
+        font-size: 13px;
+        margin-top: 8px;
+      }
+      .muted {
+        color: var(--muted);
+      }
+      .rowq {
+        max-width: 56ch;
+        white-space: pre-wrap;
+      }
+      canvas {
+        width: 100% !important;
+        height: 280px !important;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header>
+        <div>
+          <h1>nq_search data viewer</h1>
+          <div class="sub">
+            Reads parquet from <span class="mono">/mnt/task_runtime/data/nq_search</span> (override with <span class="mono">data_dir</span>).
+          </div>
+        </div>
+        <div class="controls">
+          <div class="control">
+            <label for="dataDir">data_dir</label>
+            <input id="dataDir" class="mono" value="/mnt/task_runtime/data/nq_search" />
+          </div>
+          <div class="control">
+            <label for="split">split</label>
+            <select id="split">
+              <option value="train" selected>train</option>
+              <option value="test">test</option>
+            </select>
+          </div>
+          <div class="control">
+            <label for="n">samples</label>
+            <select id="n">
+              <option value="10">10</option>
+              <option value="20" selected>20</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+          </div>
+          <div class="control">
+            <button id="refresh">Refresh</button>
+          </div>
+        </div>
+      </header>
+
+      <div id="error" class="err" style="display: none"></div>
+
+      <div class="grid">
+        <div class="card">
+          <h2>Summary</h2>
+          <div class="kpis">
+            <div class="kpi">
+              <div class="t">train rows</div>
+              <div class="v" id="trainRows">—</div>
+            </div>
+            <div class="kpi">
+              <div class="t">test rows</div>
+              <div class="v" id="testRows">—</div>
+            </div>
+            <div class="kpi">
+              <div class="t">question length (train p50)</div>
+              <div class="v" id="trainQp50">—</div>
+            </div>
+          </div>
+          <div style="margin-top: 12px" class="muted" id="colsInfo">—</div>
+        </div>
+
+        <div class="card">
+          <h2>Distributions</h2>
+          <canvas id="abilityChart"></canvas>
+        </div>
+
+        <div class="card" style="grid-column: 1 / -1">
+          <h2>Random samples</h2>
+          <div class="muted" style="margin-bottom: 10px">
+            Tip: hit Refresh to resample. The API returns only a few columns (id/question/golden_answers/etc.).
+          </div>
+          <div style="overflow: auto">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width: 140px">id</th>
+                  <th>question</th>
+                  <th style="width: 220px">golden_answers</th>
+                  <th style="width: 160px">meta</th>
+                </tr>
+              </thead>
+              <tbody id="tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const $ = (id) => document.getElementById(id);
+      const errorEl = $("error");
+      const btn = $("refresh");
+      let abilityChart = null;
+
+      function showError(msg) {
+        errorEl.style.display = msg ? "block" : "none";
+        errorEl.textContent = msg || "";
+      }
+
+      async function api(path, params) {
+        const qs = new URLSearchParams(params || {}).toString();
+        const url = qs ? `${path}?${qs}` : path;
+        const r = await fetch(url);
+        const text = await r.text();
+        let data;
+        try {
+          data = JSON.parse(text);
+        } catch {
+          throw new Error(`Bad JSON from ${url}: ${text.slice(0, 180)}`);
+        }
+        if (!r.ok) throw new Error(data?.error || `${r.status} ${r.statusText}`);
+        return data;
+      }
+
+      function buildBarChart(ctx, labels, values) {
+        if (abilityChart) abilityChart.destroy();
+        abilityChart = new Chart(ctx, {
+          type: "bar",
+          data: {
+            labels,
+            datasets: [
+              {
+                label: "count",
+                data: values,
+                backgroundColor: "rgba(124, 92, 255, 0.65)",
+                borderColor: "rgba(124, 92, 255, 0.95)",
+                borderWidth: 1,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: { display: false },
+              tooltip: { intersect: false },
+            },
+            scales: {
+              x: { ticks: { color: "rgba(255,255,255,0.78)" }, grid: { color: "rgba(255,255,255,0.08)" } },
+              y: { ticks: { color: "rgba(255,255,255,0.78)" }, grid: { color: "rgba(255,255,255,0.08)" } },
+            },
+          },
+        });
+      }
+
+      function fmt(n) {
+        if (n === null || n === undefined) return "—";
+        if (typeof n === "number" && !Number.isInteger(n)) return n.toFixed(1);
+        return String(n);
+      }
+
+      function renderSamples(rows) {
+        const tb = $("tbody");
+        tb.innerHTML = "";
+        for (const r of rows) {
+          const tr = document.createElement("tr");
+          const meta = [];
+          if (r.data_source) meta.push(`<span class="pill">${r.data_source}</span>`);
+          if (r.ability) meta.push(`<span class="pill">${r.ability}</span>`);
+          if (r.extra_info && (r.extra_info.split || r.extra_info.index !== undefined)) {
+            meta.push(`<span class="pill">#${r.extra_info.index ?? "?"}</span>`);
+          }
+          tr.innerHTML = `
+            <td class="mono">${r.id ?? ""}</td>
+            <td class="rowq">${(r.question ?? "").replaceAll("<", "&lt;")}</td>
+            <td class="mono">${JSON.stringify(r.golden_answers ?? [])}</td>
+            <td>${meta.join(" ")}</td>
+          `;
+          tb.appendChild(tr);
+        }
+      }
+
+      async function refresh() {
+        showError("");
+        btn.disabled = true;
+        try {
+          const data_dir = $("dataDir").value.trim();
+          const split = $("split").value;
+          const n = $("n").value;
+
+          const summary = await api("/api/summary", { data_dir });
+          $("trainRows").textContent = fmt(summary.train.rows);
+          $("testRows").textContent = fmt(summary.test.rows);
+          $("trainQp50").textContent = fmt(summary.train.question_length?.p50);
+          $("colsInfo").textContent = `train columns: ${summary.train.columns.join(", ")}`;
+
+          const counts = summary[split].ability_counts || { unknown: summary[split].rows };
+          const labels = Object.keys(counts);
+          const values = labels.map((k) => counts[k]);
+          buildBarChart($("abilityChart"), labels, values);
+
+          const samples = await api("/api/samples", { data_dir, split, n });
+          renderSamples(samples.rows || []);
+        } catch (e) {
+          showError(e?.message || String(e));
+        } finally {
+          btn.disabled = false;
+        }
+      }
+
+      $("refresh").addEventListener("click", refresh);
+      window.addEventListener("load", refresh);
+    </script>
+  </body>
+</html>
