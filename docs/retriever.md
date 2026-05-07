@@ -24,6 +24,8 @@ For local retrievers, we use [wiki-18](https://huggingface.co/datasets/PeterJinG
 
 Search engine launching scripts can be found at [link](https://github.com/PeterGriffinJin/Search-R1/tree/main/example/retriever).
 
+The retrieval API binds **all interfaces** (`0.0.0.0`). The listen port defaults to **8000**; set **`RETRIEVAL_PORT`** in the environment or pass **`--port`** to `search_r1/search/retrieval_server.py` if you need another port (for example when training uses `retriever.url` on `8001`). Convenience wrappers live under [`scripts/retriever/`](https://github.com/PeterGriffinJin/Search-R1/tree/main/scripts/retriever).
+
 ### Local Sparse Retriever
 
 Sparse retriever (e.g., bm25) is a traditional method. The retrieval process is very efficient and no GPUs are needed. However, it may not be as accurate as dense retrievers in some specific domain.

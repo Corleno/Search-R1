@@ -367,6 +367,13 @@ if __name__ == "__main__":
     parser.add_argument("--retriever_name", type=str, default="e5", help="Name of the retriever model.")
     parser.add_argument("--retriever_model", type=str, default="intfloat/e5-base-v2", help="Path of the retriever model.")
     parser.add_argument('--faiss_gpu', action='store_true', help='Use GPU for computation')
+    _default_port = int(os.environ.get("RETRIEVAL_PORT", "8000"))
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=_default_port,
+        help="HTTP listen port for uvicorn (default: env RETRIEVAL_PORT or 8000).",
+    )
 
     args = parser.parse_args()
     
@@ -388,5 +395,5 @@ if __name__ == "__main__":
     # 2) Instantiate a global retriever so it is loaded once and reused.
     retriever = get_retriever(config)
     
-    # 3) Launch the server. By default, it listens on http://127.0.0.1:8000
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    # 3) Launch the server (host 0.0.0.0; port from --port or RETRIEVAL_PORT).
+    uvicorn.run(app, host="0.0.0.0", port=args.port)
