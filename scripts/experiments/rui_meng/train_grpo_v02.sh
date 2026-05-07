@@ -58,6 +58,9 @@ RETRIEVER_URL="${RETRIEVER_URL:-http://127.0.0.1:8000/retrieve}"
 # Keep v0.2 recommendation for Qwen with vLLM.
 export VLLM_ATTENTION_BACKEND="${VLLM_ATTENTION_BACKEND:-XFORMERS}"
 
+# Fix NCCL error: https://github.com/NVIDIA/nccl-tests/issues/600
+export NCCL_NET_PLUGIN=dummy_name
+
 cd "${PROJECT_ROOT}"
 
 PYTHONUNBUFFERED=1 python3 -m verl.trainer.main_ppo \
