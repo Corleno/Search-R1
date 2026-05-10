@@ -768,10 +768,14 @@ class RayPPOTrainer(object):
 
                         with _timer('gen', timing_raw):
                             generation_manager.timing_raw = timing_raw
+                            # generate batch output with search and output is a DataProto object.
+                            # output.batch contains fields: attention_mask, info_mask, input_ids, position_ids, prompts, responses, responses_with_info_mask.
+                            # output.non_tensor_batch contains fields: 
+                            # output.meta_info contains fields: micro_batch_size, max_token_len, use_dynamic_bsz, temperature, top_k, turns_stats, active_mask, valid_action_stats, valid_search_stats.
                             final_gen_batch_output = generation_manager.run_llm_loop(
                                 gen_batch=gen_batch,
                                 initial_input_ids=first_input_ids,
-                            )
+                            ) 
 
                         # final_gen_batch_output.batch.apply(lambda x: x.long(), inplace=True)
                         for key in final_gen_batch_output.batch.keys():
@@ -779,6 +783,10 @@ class RayPPOTrainer(object):
 
                         with torch.no_grad():
                             output = self.actor_rollout_wg.compute_log_prob(final_gen_batch_output)
+                            # output is a DataProto object.
+                            # output.batch contains fields: entropys, old_log_probs, student_top_k_ids, student_top_k_log_probs if top_k > 0 or calculate_entropy is true, otherwise only old_log_probs.
+                            # output.non_tensor_batch contains fields: 
+                            # output.meta_info contains fields: 
                             final_gen_batch_output = final_gen_batch_output.union(output)
 
                         # batch.non_tensor_batch['uid'] = np.array([str(uuid.uuid4()) for _ in range(len(batch.batch))],
@@ -830,10 +838,6 @@ class RayPPOTrainer(object):
                             if 'response_mask' not in batch.batch.keys():
                                 batch.batch['response_mask'] = batch.batch['attention_mask'][:, -response_length:]
 
-                            with _timer('opd_log_prob', timing_raw):
-                                lp_out = self.actor_rollout_wg.compute_log_prob(batch)
-                                batch = batch.union(lp_out)
-
                             top_k = int(self.config.actor_rollout_ref.rollout.get('log_prob_top_k', 0) or 0)
                             strategy = self.config.actor_rollout_ref.rollout.get('top_k_strategy', 'only_stu')
                             reward_weight_mode = self.config.actor_rollout_ref.rollout.get(
@@ -858,15 +862,6 @@ class RayPPOTrainer(object):
                             reward_tensor = self.reward_fn(batch)
                             batch.batch['token_level_scores'] = reward_tensor
                             batch.batch['token_level_rewards'] = batch.batch['token_level_scores']
-
-                            batch = compute_advantage(
-                                batch,
-                                adv_estimator=self.config.algorithm.adv_estimator,
-                                gamma=self.config.algorithm.gamma,
-                                lam=self.config.algorithm.lam,
-                                num_repeat=self.config.actor_rollout_ref.rollout.n,
-                                config=self.config,
-                            )
                         else:
                             # compute scores. Support both model and function-based.
                             if self.use_rm:
@@ -884,14 +879,12 @@ class RayPPOTrainer(object):
                             else:
                                 batch.batch['token_level_rewards'] = batch.batch['token_level_scores']
 
-                            batch = compute_advantage(batch,
-                                                      adv_estimator=self.config.algorithm.adv_estimator,
-                                                      gamma=self.config.algorithm.gamma,
-                                                      lam=self.config.algorithm.lam,
-                                                      num_repeat=self.config.actor_rollout_ref.rollout.n,
-                                                      config=self.config)
-
-                    import pdb; pdb.set_trace() # WIP
+                        batch = compute_advantage(batch,
+                                                  adv_estimator=self.config.algorithm.adv_estimator,
+                                                  gamma=self.config.algorithm.gamma,
+                                                  lam=self.config.algorithm.lam,
+                                                  num_repeat=self.config.actor_rollout_ref.rollout.n,
+                                                  config=self.config)
 
                     # update critic
                     if self.use_critic:

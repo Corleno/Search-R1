@@ -211,7 +211,10 @@ class DataParallelPPOActor(BasePPOActor):
         self.actor_optimizer.step()
         return grad_norm
 
-    def compute_log_prob(self, data: DataProto) -> torch.Tensor:
+    def compute_log_prob(
+        self, data: DataProto
+    ) -> Union[torch.Tensor, Tuple[torch.Tensor, Optional[torch.Tensor], Optional[torch.Tensor],
+                                   Optional[torch.Tensor]]]:
         """Compute the log probability of the responses given input_ids, attention_mask and position_ids
 
         Args:
@@ -227,7 +230,16 @@ class DataParallelPPOActor(BasePPOActor):
                 ``responses``:  tensor of shape [batch_size, response_length]. torch.int64.
 
         Returns:
-            torch.Tensor: the log_prob tensor
+            By default (``top_k`` is 0 and ``calculate_entropy`` is false in ``data.meta_info``): a
+            ``torch.Tensor`` of shape ``[batch_size, response_length]`` — log-probability of each
+            response token under the actor.
+
+            If ``top_k > 0`` or ``calculate_entropy`` is true: a tuple
+            ``(log_probs, entropys, topk_ids, topk_log_probs)``. ``log_probs`` has the same shape as
+            above. ``entropys`` is per-token entropy when entropy is computed, else ``None``.
+            ``topk_ids`` and ``topk_log_probs`` are ``None`` when ``top_k`` is 0; when ``top_k > 0``,
+            they have shape ``[batch_size, response_length, top_k]`` (token ids and log-probs for the
+            top-``k`` logits at each response position).
         """
         # set to eval
         self.actor_module.eval()
