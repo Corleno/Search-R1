@@ -89,6 +89,11 @@ actor_rollout_ref:
     # number of responses (i.e. num sample times)
     n: 1 # > 1 for grpo
     n_agent: 1 # different here used for agent tasks only
+    # OPD / on-policy distillation (student top-K vs teacher); see train_opd.sh
+    log_prob_top_k: 0
+    top_k_strategy: only_stu
+    reward_weight_mode: student_p
+    teacher_temperature: 1.0
 
 critic:
   strategy: fsdp
@@ -127,6 +132,7 @@ critic:
 
 reward_model:
   enable: False
+  use_opd_teacher: false  # true: causal LM teacher (OPD); false: token-classification RM
   strategy: fsdp
   model:
     input_tokenizer: ${actor_rollout_ref.model.path}  # set this to null if the chat template is identical
@@ -153,6 +159,7 @@ algorithm:
   gamma: 1.0
   lam: 1.0
   adv_estimator: gae
+  grpo_outcome_weight: 1.0  # used when adv_estimator=token_reward_direct_plus_grpo
   no_think_rl: False
   kl_penalty: kl  # how to estimate kl divergence
   kl_ctrl:

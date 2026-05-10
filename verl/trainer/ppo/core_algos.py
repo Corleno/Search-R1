@@ -155,6 +155,46 @@ def compute_grpo_outcome_advantage(token_level_rewards: torch.Tensor,
     return scores, scores
 
 
+def compute_token_reward_direct_advantage(
+    token_level_rewards: torch.Tensor,
+    response_mask: torch.Tensor,
+):
+    """Use token-level rewards directly as advantages (OPD / on-policy distillation).
+
+    Supports (bs, response_length) or (bs, response_length, k) for top-k weighted rewards.
+
+    Returns ``(advantages, returns)`` with ``returns == advantages`` so the trainer can
+    populate ``batch['returns']`` like GAE/GRPO; there is no separate value target for OPD.
+    """
+    with torch.no_grad():
+        if token_level_rewards.dim() == 3:
+            response_mask = response_mask.unsqueeze(-1)
+        advantages = token_level_rewards * response_mask
+        returns = advantages.clone()
+    return advantages, returns
+
+
+def compute_token_reward_direct_plus_grpo_advantage(
+    token_level_rewards: torch.Tensor,
+    response_mask: torch.Tensor,
+    index,
+    grpo_outcome_weight: float = 1.0,
+    epsilon: float = 1e-6,
+):
+    """Combine dense token_reward_direct with GRPO-style outcome baseline."""
+    direct_adv, _ = compute_token_reward_direct_advantage(token_level_rewards, response_mask)
+    grpo_adv, _ = compute_grpo_outcome_advantage(
+        token_level_rewards=token_level_rewards,
+        eos_mask=response_mask,
+        index=index,
+        epsilon=epsilon,
+    )
+    combined = direct_adv + grpo_outcome_weight * grpo_adv
+    # Same contract as compute_token_reward_direct_advantage: returns track the policy target tensor.
+    combined_returns = combined.clone()
+    return combined, combined_returns, {'token_level_advantage_direct': direct_adv}
+
+
 def compute_rewards(token_level_scores, old_log_prob, ref_log_prob, kl_ratio):
     kl = old_log_prob - ref_log_prob
     return token_level_scores - kl * kl_ratio
@@ -165,11 +205,11 @@ def compute_policy_loss(old_log_prob, log_prob, advantages, eos_mask, cliprange)
 
     Args:
         old_log_prob: `(torch.Tensor)`
-            shape: (bs, response_length)
+            shape: (bs, response_length) or (bs, response_length, k) for top-k OPD
         log_prob: `(torch.Tensor)`
-            shape: (bs, response_length)
+            shape: (bs, response_length) or (bs, response_length, k)
         advantages: `(torch.Tensor)`
-            shape: (bs, response_length)
+            shape: (bs, response_length) or (bs, response_length, k)
         eos_mask: `(torch.Tensor)`
             shape: (bs, response_length)
         cliprange: (float)
@@ -182,6 +222,8 @@ def compute_policy_loss(old_log_prob, log_prob, advantages, eos_mask, cliprange)
             a float number indicating the fraction of policy gradient loss being clipped
 
     """
+    if advantages.dim() == 3:
+        eos_mask = eos_mask.unsqueeze(-1).expand_as(advantages)
     negative_approx_kl = log_prob - old_log_prob
     ratio = torch.exp(negative_approx_kl)
     ppo_kl = verl_F.masked_mean(-negative_approx_kl, eos_mask)

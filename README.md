@@ -53,6 +53,7 @@ Paper: [link1](https://arxiv.org/pdf/2503.09516), [link2](https://arxiv.org/abs/
 ## Links
 
 - [Installation](#installation)
+- [On-policy distillation (OPD)](./README_OPD.md)
 - [Quick start](#quick-start)
 - [Preliminary results](#preliminary-results)
 - [Inference](#inference)

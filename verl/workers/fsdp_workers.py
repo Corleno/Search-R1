@@ -365,6 +365,8 @@ class ActorRolloutRefWorker(Worker):
             load_fsdp_optimizer(optimizer=self.actor_optimizer, device_id=torch.cuda.current_device())
 
         data.batch = data.batch.cuda()
+        if 'temperature' not in data.meta_info:
+            data.meta_info['temperature'] = self.config.rollout.temperature
 
         log_gpu_memory_usage('Before update policy', logger=logger)
 
@@ -397,6 +399,19 @@ class ActorRolloutRefWorker(Worker):
         torch.cuda.empty_cache()
         return output
 
+    @staticmethod
+    def _proto_from_logprob_result(raw):
+        if isinstance(raw, tuple):
+            log_probs, entropys, topk_ids, topk_log_probs = raw
+            tensors = {'old_log_probs': log_probs}
+            if entropys is not None:
+                tensors['entropys'] = entropys
+            if topk_ids is not None:
+                tensors['student_top_k_ids'] = topk_ids
+                tensors['student_top_k_log_probs'] = topk_log_probs
+            return DataProto.from_dict(tensors=tensors)
+        return DataProto.from_dict(tensors={'old_log_probs': raw})
+
     @register(dispatch_mode=Dispatch.DP_COMPUTE_PROTO)
     def compute_log_prob(self, data: DataProto) -> DataProto:
         """mostly copying from generate_sequences"""
@@ -411,23 +426,60 @@ class ActorRolloutRefWorker(Worker):
         data.batch = data.batch.cuda()
         meta_info = {'eos_token_id': self.tokenizer.eos_token_id, 'pad_token_id': self.tokenizer.pad_token_id}
         data.meta_info.update(meta_info)
+        if 'micro_batch_size' not in data.meta_info:
+            data.meta_info['micro_batch_size'] = self.config.rollout.log_prob_micro_batch_size
+        if 'max_token_len' not in data.meta_info:
+            data.meta_info['max_token_len'] = self.config.rollout.log_prob_max_token_len_per_gpu
+        if 'use_dynamic_bsz' not in data.meta_info:
+            data.meta_info['use_dynamic_bsz'] = self.config.rollout.log_prob_use_dynamic_bsz
+        if 'temperature' not in data.meta_info:
+            data.meta_info['temperature'] = self.config.rollout.temperature
+        if 'top_k' not in data.meta_info:
+            data.meta_info['top_k'] = int(self.config.rollout.get('log_prob_top_k', 0) or 0)
 
         with self.ulysses_sharding_manager:
             data = self.ulysses_sharding_manager.preprocess_data(data)
-            old_log_probs = self.actor.compute_log_prob(data=data)
-            output = DataProto.from_dict(tensors={'old_log_probs': old_log_probs})
+            raw = self.actor.compute_log_prob(data=data)
+            output = self._proto_from_logprob_result(raw)
             output = self.ulysses_sharding_manager.postprocess_data(output)
-            
+
         output = output.to('cpu')
 
         if self._is_offload_param:
-            # NOTE(sgm): the grad is already in CPU, only offload param here
             offload_fsdp_param_and_grad(module=self.actor_module_fsdp, offload_grad=self._is_offload_grad)
-        # clear kv cache
         torch.cuda.empty_cache()
         log_gpu_memory_usage('After recompute log prob', logger=logger)
         return output
-        
+
+    @register(dispatch_mode=Dispatch.DP_COMPUTE_PROTO)
+    def compute_distillation_reward(self, data: DataProto) -> DataProto:
+        data = data.to('cuda')
+        assert self._is_rollout
+        if self._is_offload_param:
+            load_fsdp_param_and_grad(module=self.actor_module_fsdp,
+                                     device_id=torch.cuda.current_device(),
+                                     load_grad=self._is_offload_grad)
+        data.batch = data.batch.cuda()
+        if 'micro_batch_size' not in data.meta_info:
+            data.meta_info['micro_batch_size'] = self.config.actor.ppo_micro_batch_size
+        if 'temperature' not in data.meta_info:
+            data.meta_info['temperature'] = self.config.rollout.temperature
+        if 'use_dynamic_bsz' not in data.meta_info:
+            data.meta_info['use_dynamic_bsz'] = self.config.actor.use_dynamic_bsz
+        if 'max_token_len' not in data.meta_info:
+            data.meta_info['max_token_len'] = self.config.actor.ppo_max_token_len_per_gpu
+
+        with self.ulysses_sharding_manager:
+            data = self.ulysses_sharding_manager.preprocess_data(data=data)
+            out = self.actor.compute_distillation_reward(data=data)
+            out = self.ulysses_sharding_manager.postprocess_data(data=out)
+
+        out = out.to('cpu')
+        if self._is_offload_param:
+            offload_fsdp_param_and_grad(module=self.actor_module_fsdp, offload_grad=self._is_offload_grad)
+        torch.cuda.empty_cache()
+        return out
+
     @register(dispatch_mode=Dispatch.DP_COMPUTE_PROTO)
     def generate_sequences(self, prompts: DataProto):
         prompts = prompts.to('cuda')
@@ -459,11 +511,20 @@ class ActorRolloutRefWorker(Worker):
             output.meta_info['max_token_len'] = self.config.rollout.log_prob_max_token_len_per_gpu
             output.meta_info['use_dynamic_bsz'] = self.config.rollout.log_prob_use_dynamic_bsz
             output.meta_info['temperature'] = self.config.rollout.temperature
-            # perform recompute log_prob
+            output.meta_info['top_k'] = int(self.config.rollout.get('log_prob_top_k', 0) or 0)
             with self.ulysses_sharding_manager:
                 output = self.ulysses_sharding_manager.preprocess_data(output)
-                old_log_probs = self.actor.compute_log_prob(data=output)
-                output.batch['old_log_probs'] = old_log_probs
+                raw = self.actor.compute_log_prob(data=output)
+                if isinstance(raw, tuple):
+                    log_probs, entropys, topk_ids, topk_log_probs = raw
+                    output.batch['old_log_probs'] = log_probs
+                    if entropys is not None:
+                        output.batch['entropys'] = entropys
+                    if topk_ids is not None:
+                        output.batch['student_top_k_ids'] = topk_ids
+                        output.batch['student_top_k_log_probs'] = topk_log_probs
+                else:
+                    output.batch['old_log_probs'] = raw
                 output = self.ulysses_sharding_manager.postprocess_data(output)
 
         output = output.to('cpu')

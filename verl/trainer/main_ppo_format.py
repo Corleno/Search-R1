@@ -172,7 +172,10 @@ def main_task(config):
     # - The reward type depends on the tag of the data
     if config.reward_model.enable:
         if config.reward_model.strategy == 'fsdp':
-            from verl.workers.fsdp_workers import RewardModelWorker
+            if config.reward_model.get('use_opd_teacher', False):
+                from verl.workers.opd_teacher_reward_worker import OPDTeacherRewardWorker as RewardModelWorker
+            else:
+                from verl.workers.fsdp_workers import RewardModelWorker
         elif config.reward_model.strategy == 'megatron':
             from verl.workers.megatron_workers import RewardModelWorker
         else:

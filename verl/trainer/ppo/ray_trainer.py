@@ -120,7 +120,11 @@ def apply_kl_penalty(data: DataProto, kl_ctrl: core_algos.AdaptiveKLController, 
     return data, metrics
 
 
-def compute_advantage(data: DataProto, adv_estimator, gamma=1.0, lam=1.0, num_repeat=1):
+def _is_opd_adv_estimator(adv_estimator: str) -> bool:
+    return adv_estimator in ('token_reward_direct', 'token_reward_direct_plus_grpo')
+
+
+def compute_advantage(data: DataProto, adv_estimator, gamma=1.0, lam=1.0, num_repeat=1, config=None):
     # prepare response group
     # TODO: add other ways to estimate advantages
     if adv_estimator == 'gae':
@@ -149,6 +153,38 @@ def compute_advantage(data: DataProto, adv_estimator, gamma=1.0, lam=1.0, num_re
                                                                         index=index)
         data.batch['advantages'] = advantages
         data.batch['returns'] = returns
+    elif adv_estimator == 'token_reward_direct':
+        token_level_rewards = data.batch['token_level_rewards']
+        responses = data.batch['responses']
+        response_length = responses.size(-1)
+        attention_mask = data.batch['attention_mask']
+        response_mask = attention_mask[:, -response_length:]
+        advantages, returns = core_algos.compute_token_reward_direct_advantage(
+            token_level_rewards=token_level_rewards,
+            response_mask=response_mask,
+        )
+        data.batch['advantages'] = advantages
+        data.batch['returns'] = returns
+    elif adv_estimator == 'token_reward_direct_plus_grpo':
+        token_level_rewards = data.batch['token_level_rewards']
+        index = data.non_tensor_batch['uid']
+        responses = data.batch['responses']
+        response_length = responses.size(-1)
+        attention_mask = data.batch['attention_mask']
+        response_mask = attention_mask[:, -response_length:]
+        weight = 1.0
+        if config is not None:
+            weight = OmegaConf.select(config, 'algorithm.grpo_outcome_weight', default=1.0)
+        advantages, returns, extra = core_algos.compute_token_reward_direct_plus_grpo_advantage(
+            token_level_rewards=token_level_rewards,
+            response_mask=response_mask,
+            index=index,
+            grpo_outcome_weight=weight,
+        )
+        data.batch['advantages'] = advantages
+        data.batch['returns'] = returns
+        for k, v in extra.items():
+            data.batch[k] = v
     else:
         raise NotImplementedError
     return data
@@ -195,8 +231,12 @@ def compute_data_metrics(batch, use_critic=True):
     prompt_length = response_info['prompt_length']
     response_length = response_info['response_length']
 
-    valid_adv = torch.masked_select(advantages, response_mask)
-    valid_returns = torch.masked_select(returns, response_mask)
+    adv_mask = response_mask
+    if advantages.dim() == 3:
+        adv_mask = response_mask.unsqueeze(-1).expand_as(advantages)
+    valid_adv = torch.masked_select(advantages, adv_mask)
+    ret_mask = response_mask if returns.dim() == 2 else adv_mask
+    valid_returns = torch.masked_select(returns, ret_mask)
 
     if use_critic:
         values = batch.batch['values']
@@ -572,6 +612,8 @@ class RayPPOTrainer(object):
             
         elif self.config.algorithm.adv_estimator == 'grpo':
             self.use_critic = False
+        elif _is_opd_adv_estimator(self.config.algorithm.adv_estimator):
+            self.use_critic = False
         else:
             raise NotImplementedError
 
@@ -759,8 +801,15 @@ class RayPPOTrainer(object):
                     batch.meta_info['global_token_num'] = torch.sum(batch.batch['attention_mask'], dim=-1).tolist()
 
                     # batch.batch.apply(lambda x, key: x.long() if key != "old_log_probs" else x, inplace=True, key=True)
+                    _no_long_cast = (
+                        'old_log_probs', 'ref_log_prob', 'values', 'rm_scores', 'token_level_scores',
+                        'token_level_rewards', 'advantages', 'returns', 'student_top_k_log_probs',
+                        'teacher_on_student_log_probs', 'teacher_top_k_log_probs', 'teacher_entropy',
+                        'overlap_mask', 'teacher_in_student_mask', 'student_log_probs_on_teacher_ids',
+                        'union_top_k_log_probs', 'entropys',
+                    )
                     for key in batch.batch.keys():
-                        if key != 'old_log_probs':
+                        if key not in _no_long_cast:
                             batch.batch[key] = batch.batch[key].long()
 
                     if self.use_reference_policy:
@@ -776,33 +825,71 @@ class RayPPOTrainer(object):
                             batch = batch.union(values)
 
                     with _timer('adv', timing_raw):
-                        # compute scores. Support both model and function-based.
-                        # We first compute the scores using reward model. Then, we call reward_fn to combine
-                        # the results from reward model and rule-based results.
-                        if self.use_rm:
-                            # we first compute reward model score
-                            reward_tensor = self.rm_wg.compute_rm_score(batch)
-                            batch = batch.union(reward_tensor)
+                        if self.use_rm and _is_opd_adv_estimator(self.config.algorithm.adv_estimator):
+                            response_length = batch.batch['responses'].shape[-1]
+                            if 'response_mask' not in batch.batch.keys():
+                                batch.batch['response_mask'] = batch.batch['attention_mask'][:, -response_length:]
 
-                        # we combine with rule-based rm
-                        reward_tensor = self.reward_fn(batch)
-                        batch.batch['token_level_scores'] = reward_tensor
+                            with _timer('opd_log_prob', timing_raw):
+                                lp_out = self.actor_rollout_wg.compute_log_prob(batch)
+                                batch = batch.union(lp_out)
 
-                        # compute rewards. apply_kl_penalty if available
-                        if not self.config.actor_rollout_ref.actor.use_kl_loss:
-                            batch, kl_metrics = apply_kl_penalty(batch,
-                                                                 kl_ctrl=self.kl_ctrl,
-                                                                 kl_penalty=self.config.algorithm.kl_penalty)
-                            metrics.update(kl_metrics)
-                        else:
+                            top_k = int(self.config.actor_rollout_ref.rollout.get('log_prob_top_k', 0) or 0)
+                            strategy = self.config.actor_rollout_ref.rollout.get('top_k_strategy', 'only_stu')
+                            reward_weight_mode = self.config.actor_rollout_ref.rollout.get(
+                                'reward_weight_mode', 'student_p')
+                            teacher_temperature = float(
+                                self.config.actor_rollout_ref.rollout.get('teacher_temperature', 1.0))
+
+                            batch.meta_info['log_prob_top_k'] = top_k
+                            batch.meta_info['top_k_strategy'] = strategy
+                            batch.meta_info['reward_weight_mode'] = reward_weight_mode
+                            batch.meta_info['teacher_temperature'] = teacher_temperature
+
+                            with _timer('opd_teacher', timing_raw):
+                                teacher_out = self.rm_wg.compute_rm_score(batch)
+                                batch = batch.union(teacher_out)
+
+                            if top_k > 0:
+                                with _timer('opd_distill', timing_raw):
+                                    distill = self.actor_rollout_wg.compute_distillation_reward(batch)
+                                    batch = batch.union(distill)
+
+                            reward_tensor = self.reward_fn(batch)
+                            batch.batch['token_level_scores'] = reward_tensor
                             batch.batch['token_level_rewards'] = batch.batch['token_level_scores']
 
-                        # compute advantages, executed on the driver process
-                        batch = compute_advantage(batch,
-                                                  adv_estimator=self.config.algorithm.adv_estimator,
-                                                  gamma=self.config.algorithm.gamma,
-                                                  lam=self.config.algorithm.lam,
-                                                  num_repeat=self.config.actor_rollout_ref.rollout.n)
+                            batch = compute_advantage(
+                                batch,
+                                adv_estimator=self.config.algorithm.adv_estimator,
+                                gamma=self.config.algorithm.gamma,
+                                lam=self.config.algorithm.lam,
+                                num_repeat=self.config.actor_rollout_ref.rollout.n,
+                                config=self.config,
+                            )
+                        else:
+                            # compute scores. Support both model and function-based.
+                            if self.use_rm:
+                                reward_tensor = self.rm_wg.compute_rm_score(batch)
+                                batch = batch.union(reward_tensor)
+
+                            reward_tensor = self.reward_fn(batch)
+                            batch.batch['token_level_scores'] = reward_tensor
+
+                            if not self.config.actor_rollout_ref.actor.use_kl_loss:
+                                batch, kl_metrics = apply_kl_penalty(batch,
+                                                                     kl_ctrl=self.kl_ctrl,
+                                                                     kl_penalty=self.config.algorithm.kl_penalty)
+                                metrics.update(kl_metrics)
+                            else:
+                                batch.batch['token_level_rewards'] = batch.batch['token_level_scores']
+
+                            batch = compute_advantage(batch,
+                                                      adv_estimator=self.config.algorithm.adv_estimator,
+                                                      gamma=self.config.algorithm.gamma,
+                                                      lam=self.config.algorithm.lam,
+                                                      num_repeat=self.config.actor_rollout_ref.rollout.n,
+                                                      config=self.config)
 
                     # update critic
                     if self.use_critic:
