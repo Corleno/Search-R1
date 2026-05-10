@@ -111,7 +111,7 @@ class OPDTeacherRewardWorker(Worker):
     def _compute_entropy_safe(self, logits, chunk_size=4096):
         original_shape = logits.shape
         vocab_size = original_shape[-1]
-        logits_flat = logits.view(-1, vocab_size)
+        logits_flat = logits.reshape(-1, vocab_size)
         entropy_list = []
         for i in range(0, logits_flat.size(0), chunk_size):
             chunk = logits_flat[i:i + chunk_size]
@@ -120,7 +120,7 @@ class OPDTeacherRewardWorker(Worker):
             entropy = -torch.sum(probs * log_probs, dim=-1)
             entropy_list.append(entropy)
         entropy_flat = torch.cat(entropy_list, dim=0)
-        return entropy_flat.view(original_shape[:-1])
+        return entropy_flat.reshape(original_shape[:-1])
 
     def _compute_teacher_top_k_log_probs(self, logits, student_ids, top_k, strategy='only_stu', chunk_size=1024):
         n_samples = logits.size(0)

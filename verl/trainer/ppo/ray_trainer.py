@@ -891,6 +891,8 @@ class RayPPOTrainer(object):
                                                       num_repeat=self.config.actor_rollout_ref.rollout.n,
                                                       config=self.config)
 
+                    import pdb; pdb.set_trace() # WIP
+
                     # update critic
                     if self.use_critic:
                         with _timer('update_critic', timing_raw):

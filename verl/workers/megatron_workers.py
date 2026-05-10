@@ -391,8 +391,10 @@ class ActorRolloutRefWorker(MegatronWorker):
         micro_batch_size = self.config.rollout.log_prob_micro_batch_size
         data.meta_info['micro_batch_size'] = micro_batch_size
         data.meta_info['temperature'] = self.config.rollout.temperature
-        output = self.ref_policy.compute_log_prob(data=data)
-        output = DataProto.from_dict(tensors={'ref_log_prob': output})
+        raw = self.ref_policy.compute_log_prob(data=data)
+        if isinstance(raw, tuple):
+            raw = raw[0]
+        output = DataProto.from_dict(tensors={'ref_log_prob': raw})
         output = output.to('cpu')
         if self._is_offload_param:
             offload_megatron_param_and_grad(self.ref_module, self._is_offload_grad)
