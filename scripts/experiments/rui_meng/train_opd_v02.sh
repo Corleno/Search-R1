@@ -28,6 +28,17 @@ set -euo pipefail
 #   RETRIEVER_URL — full retrieve endpoint (default http://127.0.0.1:8000/retrieve); see train_grpo_v02.sh
 #   TMPDIR, PYTORCH_CUDA_ALLOC_CONF, VLLM_ATTENTION_BACKEND
 
+# check if the wandb api key is set
+if [ -z "$WANDB_API_KEY_SEARCH_R1" ]; then
+    echo "WANDB_API_KEY_SEARCH_R1 is not set"
+    exit 1
+fi
+
+# W&B: default cloud (no custom host). Unset avoids the literal string "None", which breaks the client.
+unset WANDB_BASE_URL
+unset WANDB_ENTITY
+export WANDB_API_KEY="${WANDB_API_KEY_SEARCH_R1}"
+
 export CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-0,1,2,3,4,5,6,7}"
 _CVD="${CUDA_VISIBLE_DEVICES// /}"
 IFS=',' read -ra _CVD_IDS <<< "${_CVD}"
