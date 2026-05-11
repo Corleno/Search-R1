@@ -139,7 +139,9 @@ class DataParallelPPOActor(BasePPOActor):
                     else:
                         _, topk_ids = torch.topk(logits_rmpad, k=top_k, dim=-1)
                     assert topk_ids is not None
-                    topk_log_probs = torch.log_softmax(logits_rmpad, dim=-1).gather(dim=-1, index=topk_ids)
+                    # Reuse log_probs_all from above; a second log_softmax would duplicate
+                    # [nnz, vocab] peak memory and often OOMs on large vocabs.
+                    topk_log_probs = log_probs_all.gather(dim=-1, index=topk_ids)
 
                 # gather log_prob if sp > 1
                 if self.use_ulysses_sp:
@@ -197,7 +199,7 @@ class DataParallelPPOActor(BasePPOActor):
                         topk_ids = student_top_k_ids
                     else:
                         _, topk_ids = torch.topk(logits, k=top_k, dim=-1)
-                    topk_log_probs = torch.log_softmax(logits, dim=-1).gather(dim=-1, index=topk_ids)
+                    topk_log_probs = log_probs_all.gather(dim=-1, index=topk_ids)
 
             return entropy, log_probs, topk_ids, topk_log_probs
 
