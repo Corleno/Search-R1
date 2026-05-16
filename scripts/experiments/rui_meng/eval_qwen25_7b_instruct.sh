@@ -1,23 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Eval-only (GRPO stack: main_ppo + adv_estimator=grpo) loading weights from Hugging Face:
-#   https://huggingface.co/PeterJinGo/SearchR1-nq_hotpotqa_train-qwen2.5-3b-it-em-grpo-v0.2
-#
-# Data: always your locally processed train/test parquet (same official-repo data pipeline you already ran).
-# Defaults match scripts/nq_hotpotqa/v0.2/train_grpo.sh (data/nq_hotpotqa_train/{train,test}.parquet).
-# val_only still requires train.parquet on disk for the dataloader.
-# Override: DATA_DIR=... or TRAIN_FILE=... VAL_FILE=...
-#
-# Rollout / FSDP knobs match scripts/nq_hotpotqa/v0.2/train_grpo.sh
-# (same as on-the-fly _validate() during training).
-# If you still OOM while training does not, check nvidia-smi for another large GPU job; retriever + eval share the same 8 cards.
-#
-# Requires: retrieval server (default http://127.0.0.1:8000/retrieve), searchr1 conda env, 8 GPUs by default.
+# Eval-only (PPO stack: main_ppo) loading weights from Hugging Face:
+#   https://huggingface.co/Qwen/Qwen2.5-7B-Instruct
 #
 # Usage:
-#   bash scripts/experiments/rui_meng/eval_grpo_v02.sh
-#   DATA_DIR=/path/to/your/processed_dir bash scripts/experiments/rui_meng/eval_grpo_v02.sh
+#   bash scripts/experiments/rui_meng/eval_qwen25_7b_instruct.sh
+#   DATA_DIR=/path/to/your/processed_dir bash scripts/experiments/rui_meng/eval_qwen25_7b_instruct.sh
 #   EVAL_LOGGER=console  # only if you want to skip wandb
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -26,7 +15,7 @@ DATA_DIR="${DATA_DIR:-${PROJECT_ROOT}/data/nq_hotpotqa_train}"
 TRAIN_FILE="${TRAIN_FILE:-${DATA_DIR}/train.parquet}"
 VAL_FILE="${VAL_FILE:-${DATA_DIR}/test.parquet}"
 
-BASE_MODEL="${BASE_MODEL:-PeterJinGo/SearchR1-nq_hotpotqa_train-qwen2.5-3b-it-em-grpo-v0.2}"
+BASE_MODEL="${BASE_MODEL:-Qwen/Qwen2.5-7B-Instruct}"
 
 echo "evaluate_hf_official: local data (HF-equivalent pipeline)"
 echo "  TRAIN_FILE=${TRAIN_FILE}"
@@ -57,7 +46,7 @@ export WANDB_API_KEY="${WANDB_API_KEY_SEARCH_R1}"
 export CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-0,1,2,3,4,5,6,7}"
 
 WAND_PROJECT="${WAND_PROJECT:-Search-R1}"
-EXPERIMENT_NAME="${EXPERIMENT_NAME:-eval-official-ckpt-qwen2.5-3b-it-grpo-v0.2-on-train_nq_hotpotqa}"
+EXPERIMENT_NAME="${EXPERIMENT_NAME:-eval-qwen2.5-7b-instruct-on-train_nq_hotpotqa}"
 RETRIEVER_URL="${RETRIEVER_URL:-http://127.0.0.1:8000/retrieve}"
 
 VAL_BATCH_SIZE="${VAL_BATCH_SIZE:-256}"
