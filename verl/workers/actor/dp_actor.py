@@ -26,7 +26,7 @@ from verl import DataProto
 from verl.trainer.ppo import core_algos
 from verl.workers.actor import BasePPOActor
 from verl.utils.py_functional import append_to_dict
-from verl.utils.torch_functional import logprobs_from_logits, masked_mean
+from verl.utils.torch_functional import logprobs_from_logits, log_probs_and_topk_from_logits, masked_mean
 from verl.utils.ulysses import ulysses_pad_and_slice_inputs, gather_outpus_and_unpad
 from verl.utils.seqlen_balancing import rearrange_micro_batches, get_reverse_idx
 import verl.utils.torch_functional as verl_F
@@ -112,18 +112,12 @@ class DataParallelPPOActor(BasePPOActor):
                 logits_rmpad.div_(temperature)
 
                 need_topk = top_k > 0
-                entropy_rmpad = self.compute_entropy_from_logits(logits_rmpad)
-                if need_topk and not calculate_entropy:
-                    entropy_rmpad = None
+                entropy_rmpad = None
+                if calculate_entropy:
+                    entropy_rmpad = self.compute_entropy_from_logits(logits_rmpad)
 
                 if need_topk:
-                    log_probs_all = torch.log_softmax(logits_rmpad, dim=-1)
-                    log_probs = log_probs_all.gather(
-                        dim=-1, index=input_ids_rmpad_rolled.unsqueeze(-1)).squeeze(-1)
-                else:
-                    log_probs = logprobs_from_logits(logits=logits_rmpad, labels=input_ids_rmpad_rolled)
-
-                if need_topk:
+                    preset_topk_ids = None
                     if student_top_k_ids is not None:
                         if student_top_k_ids.ndim == 3:
                             full_student_top_k_ids = torch.zeros(
@@ -134,14 +128,15 @@ class DataParallelPPOActor(BasePPOActor):
                             flat_ids = full_student_top_k_ids.view(-1, top_k)
                         else:
                             flat_ids = student_top_k_ids
-                        topk_ids_rmpad = flat_ids[indices]
-                        topk_ids = topk_ids_rmpad
-                    else:
-                        _, topk_ids = torch.topk(logits_rmpad, k=top_k, dim=-1)
-                    assert topk_ids is not None
-                    # Reuse log_probs_all from above; a second log_softmax would duplicate
-                    # [nnz, vocab] peak memory and often OOMs on large vocabs.
-                    topk_log_probs = log_probs_all.gather(dim=-1, index=topk_ids)
+                        preset_topk_ids = flat_ids[indices]
+                    log_probs, topk_ids, topk_log_probs = log_probs_and_topk_from_logits(
+                        logits_rmpad,
+                        input_ids_rmpad_rolled,
+                        top_k=top_k,
+                        topk_ids=preset_topk_ids,
+                    )
+                else:
+                    log_probs = logprobs_from_logits(logits=logits_rmpad, labels=input_ids_rmpad_rolled)
 
                 # gather log_prob if sp > 1
                 if self.use_ulysses_sp:
@@ -187,19 +182,23 @@ class DataParallelPPOActor(BasePPOActor):
                 logits = logits[:, -response_length - 1:-1, :]  # (bsz, response_length, vocab)
                 need_topk = top_k > 0
                 if need_topk:
-                    log_probs_all = torch.log_softmax(logits, dim=-1)
-                    log_probs = log_probs_all.gather(
-                        dim=-1, index=micro_batch['responses'].unsqueeze(-1)).squeeze(-1)
+                    labels = micro_batch['responses']
+                    preset_topk_ids = student_top_k_ids if student_top_k_ids is not None else None
+                    bsz, resp_len, vocab = logits.shape
+                    log_probs, topk_ids, topk_log_probs = log_probs_and_topk_from_logits(
+                        logits.reshape(bsz * resp_len, vocab),
+                        labels.reshape(bsz * resp_len),
+                        top_k=top_k,
+                        topk_ids=preset_topk_ids.reshape(bsz * resp_len, top_k)
+                        if preset_topk_ids is not None else None,
+                    )
+                    log_probs = log_probs.reshape(bsz, resp_len)
+                    topk_ids = topk_ids.reshape(bsz, resp_len, top_k)
+                    topk_log_probs = topk_log_probs.reshape(bsz, resp_len, top_k)
                 else:
                     log_probs = logprobs_from_logits(logits, micro_batch['responses'])
-                if calculate_entropy or not need_topk:
+                if calculate_entropy:
                     entropy = verl_F.entropy_from_logits(logits)
-                if need_topk:
-                    if student_top_k_ids is not None:
-                        topk_ids = student_top_k_ids
-                    else:
-                        _, topk_ids = torch.topk(logits, k=top_k, dim=-1)
-                    topk_log_probs = log_probs_all.gather(dim=-1, index=topk_ids)
 
             return entropy, log_probs, topk_ids, topk_log_probs
 
@@ -272,7 +271,7 @@ class DataParallelPPOActor(BasePPOActor):
                 entropy, log_probs, topk_ids, topk_log_probs = self._forward_micro_batch(
                     micro_batch,
                     temperature=temperature,
-                    calculate_entropy=calculate_entropy or top_k > 0,
+                    calculate_entropy=calculate_entropy,
                     top_k=top_k,
                     student_top_k_ids=None,
                 )

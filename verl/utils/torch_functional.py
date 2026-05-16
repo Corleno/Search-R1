@@ -99,6 +99,46 @@ def entropy_from_logits(logits: torch.Tensor):
     return entropy
 
 
+def log_probs_and_topk_from_logits(
+    logits: torch.Tensor,
+    labels: torch.Tensor,
+    top_k: int,
+    topk_ids: Optional[torch.Tensor] = None,
+    chunk_size: int = 1024,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Per-row label log-probs and top-k log-probs without a full-vocab log_softmax.
+
+    Uses log p(i) = logits[i] - logsumexp(logits) so peak memory scales with
+    chunk_size rather than nnz * vocab (see OPD teacher worker).
+    """
+    n = logits.size(0)
+    log_probs_parts = []
+    topk_ids_parts = []
+    topk_log_probs_parts = []
+    for start in range(0, n, chunk_size):
+        end = min(start + chunk_size, n)
+        chunk = logits[start:end]
+        labels_chunk = labels[start:end]
+        lse = torch.logsumexp(chunk, dim=-1)
+        token_log_probs = torch.gather(chunk, dim=-1, index=labels_chunk.unsqueeze(-1)).squeeze(-1) - lse
+        log_probs_parts.append(token_log_probs)
+
+        if topk_ids is not None:
+            ids_chunk = topk_ids[start:end]
+            topk_lp = torch.gather(chunk, dim=-1, index=ids_chunk) - lse.unsqueeze(-1)
+        else:
+            topk_vals, ids_chunk = torch.topk(chunk, k=top_k, dim=-1)
+            topk_lp = topk_vals - lse.unsqueeze(-1)
+        topk_ids_parts.append(ids_chunk)
+        topk_log_probs_parts.append(topk_lp)
+
+    return (
+        torch.cat(log_probs_parts, dim=0),
+        torch.cat(topk_ids_parts, dim=0),
+        torch.cat(topk_log_probs_parts, dim=0),
+    )
+
+
 def masked_sum(values, mask, axis=None):
     """Compute mean of tensor with a masked values."""
     return (values * mask).sum(axis=axis)
