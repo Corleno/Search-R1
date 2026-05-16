@@ -90,7 +90,8 @@ conda activate retriever
 
 # we recommend installing torch with conda for faiss-gpu
 conda install pytorch==2.4.0 torchvision==0.19.0 torchaudio==2.4.0 pytorch-cuda=12.1 -c pytorch -c nvidia
-pip install transformers datasets pyserini
+# transformers 5.x requires a newer torch and breaks retrieval_server with torch 2.4
+pip install 'transformers>=4.44,<4.48' datasets pyserini
 
 ## install the gpu version faiss to guarantee efficient RL rollout
 conda install -c pytorch -c nvidia faiss-gpu=1.8.0
