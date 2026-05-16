@@ -117,6 +117,11 @@ gzip -d $save_path/wiki-18.jsonl.gz
 python scripts/data_process/nq_search.py
 ```
 
+For NQ+HOTPOTQA data
+```bash
+huggingface-cli download --repo-type dataset PeterJinGo/nq_hotpotqa_train --local-dir ./data/nq_hotpotqa_train
+```
+
 (3) Launch a local retrieval server.
 ```bash
 conda activate retriever
