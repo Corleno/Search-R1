@@ -77,8 +77,14 @@ pip3 install vllm==0.6.3 # or you can install 0.5.4, 0.4.2 and 0.3.1
 # verl
 pip install -e .
 
-# flash attention 2
-pip3 install flash-attn --no-build-isolation
+# flash attention 2 (torch 2.4 + cu121 + python 3.9)
+# Prefer the prebuilt wheel; `pip install flash-attn` can fail with
+# "Invalid cross-device link" when pip's temp dir and cache are on different mounts.
+pip install "https://github.com/Dao-AILab/flash-attention/releases/download/v2.8.3/flash_attn-2.8.3+cu12torch2.4cxx11abiFALSE-cp39-cp39-linux_x86_64.whl"
+# Alternative if the above URL does not match your torch/cuda/python build:
+#   export TMPDIR=/path/on/same/filesystem/as/pip-cache
+#   export PIP_CACHE_DIR=/path/on/same/filesystem/as/pip-cache
+#   pip3 install flash-attn --no-build-isolation
 pip install wandb
 ```
 
