@@ -30,6 +30,30 @@ bash train_opd.sh
 
 `train_opd.sh` wraps `python3 -m verl.trainer.main_ppo` with OPD-aligned Hydra overrides. Override behavior with environment variables documented at the top of that script (`ADV_ESTIMATOR`, `LOG_PROB_TOP_K`, `TOP_K_STRATEGY`, `REWARD_WEIGHT_MODE`, `TEACHER_TEMPERATURE`, `GRPO_OUTCOME_WEIGHT`, etc.).
 
+## Eval with validation replay (JSONL)
+
+Run eval-only on a GRPO checkpoint, limit how many val samples to run, and save per-sample trajectories as JSONL (plus a metrics sidecar). Requires the retrieval server and `WANDB_API_KEY_SEARCH_R1` (or `EVAL_LOGGER=console` to skip W&B).
+
+```bash
+# Subset of val set; replay written as JSONL
+VAL_DATA_NUM=64 \
+VAL_REPLAY_PATH=val_replays/_grpo_v02_test_64.jsonl \
+bash scripts/experiments/rui_meng/eval_grpo_v02.sh
+```
+
+Outputs:
+
+- **Replay:** `VAL_REPLAY_PATH` — one JSON object per line (`question`, `trajectory`, `response`, `score`, `data_source`, etc.).
+- **Metrics:** `<stem>_metrics.json` next to the replay file (e.g. `val_replays/_grpo_v02_test_64_metrics.json`).
+
+Inspect one record:
+
+```bash
+head -n 1 val_replays/_grpo_v02_test_64.jsonl | python -m json.tool
+```
+
+Other useful overrides: `DATA_DIR`, `BASE_MODEL`, `VAL_REPLAY_DIR`, `VAL_BATCH_SIZE`, `EVAL_LOGGER=console`. See comments at the top of `scripts/experiments/rui_meng/eval_grpo_v02.sh`.
+
 ## Main configuration knobs
 
 | Area | What to set |
@@ -60,6 +84,7 @@ The student.actor side can keep normal Search-R1 choices (including `use_remove_
 | `verl/workers/opd_teacher_reward_worker.py` | Teacher forward and batch keys |
 | `verl/trainer/ppo/ray_trainer.py` | OPD branch in `fit` (`opd_log_prob`, `opd_teacher`, `opd_distill`) |
 | `verl/trainer/ppo/core_algos.py` | `compute_token_reward_direct_advantage`, hybrid with GRPO |
+| `scripts/experiments/rui_meng/eval_grpo_v02.sh` | Eval-only GRPO checkpoint + JSONL val replay |
 
 ## Citation context
 

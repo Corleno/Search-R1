@@ -1,0 +1,11 @@
+{
+  "step": 0,
+  "metrics": {
+    "val/test_score/nq": 0.4,
+    "val/test_score/musique": 0.0,
+    "val/test_score/hotpotqa": 0.21428571428571427,
+    "val/test_score/popqa": 0.5625,
+    "val/test_score/2wikimultihopqa": 0.25,
+    "val/test_score/triviaqa": 0.6666666666666666
+  }
+}

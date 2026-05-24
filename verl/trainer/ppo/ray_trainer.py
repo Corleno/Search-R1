@@ -447,10 +447,11 @@ class RayPPOTrainer(object):
                 self.val_dataset.dataframe = self.val_dataset.dataframe.sample(self.config.data.val_data_num, random_state=42)
         print(f"filtered validation dataset size: {len(self.val_dataset.dataframe)}")
 
+        val_drop_last = not self.config.trainer.get('save_val_replay', False)
         self.val_dataloader = DataLoader(dataset=self.val_dataset,
                                          batch_size=self.config.data.val_batch_size,
                                          shuffle=False,
-                                         drop_last=True,
+                                         drop_last=val_drop_last,
                                          collate_fn=collate_fn)
 
         print(f'Size of train dataloader: {len(self.train_dataloader)}')
@@ -473,6 +474,80 @@ class RayPPOTrainer(object):
             self.config.actor_rollout_ref.actor.optim.total_training_steps = total_training_steps
             self.config.critic.optim.total_training_steps = total_training_steps
 
+    def _serialize_non_tensor(self, value):
+        if isinstance(value, np.ndarray):
+            if value.dtype == object:
+                return [self._serialize_non_tensor(v) for v in value.tolist()]
+            return value.tolist()
+        if isinstance(value, (np.integer, np.floating, np.bool_)):
+            return value.item()
+        if isinstance(value, dict):
+            return {k: self._serialize_non_tensor(v) for k, v in value.items()}
+        if isinstance(value, (list, tuple)):
+            return [self._serialize_non_tensor(v) for v in value]
+        return value
+
+    def _decode_sample_trajectory(self, data_item):
+        prompt_ids = data_item.batch['prompts']
+        prompt_length = prompt_ids.shape[-1]
+        attention_mask = data_item.batch['attention_mask']
+        valid_prompt_length = attention_mask[:prompt_length].sum()
+        valid_prompt_ids = prompt_ids[-valid_prompt_length:]
+        response_ids = data_item.batch['responses']
+        valid_response_length = attention_mask[prompt_length:].sum()
+        valid_response_ids = response_ids[:valid_response_length]
+        trajectory_str = self.tokenizer.decode(torch.cat((valid_prompt_ids, valid_response_ids)))
+        response_str = self.tokenizer.decode(valid_response_ids)
+        return trajectory_str, response_str
+
+    def _extract_val_replay_records(self, test_batch, reward_tensor):
+        meta = test_batch.meta_info or {}
+        turns_stats = meta.get('turns_stats')
+        valid_action_stats = meta.get('valid_action_stats')
+        valid_search_stats = meta.get('valid_search_stats')
+        per_sample_scores = reward_tensor.sum(-1).tolist()
+
+        records = []
+        for i in range(len(test_batch)):
+            data_item = test_batch[i]
+            trajectory_str, response_str = self._decode_sample_trajectory(data_item)
+            non_tensor = data_item.non_tensor_batch
+            record = {
+                'index': self._serialize_non_tensor(non_tensor.get('index')),
+                'id': self._serialize_non_tensor(non_tensor.get('id')),
+                'data_source': self._serialize_non_tensor(non_tensor.get('data_source')),
+                'question': self._serialize_non_tensor(non_tensor.get('question')),
+                'prompt': self._serialize_non_tensor(non_tensor.get('prompt')),
+                'ground_truth': self._serialize_non_tensor(non_tensor['reward_model']['ground_truth']),
+                'trajectory': trajectory_str,
+                'response': response_str,
+                'score': per_sample_scores[i],
+                'turns': turns_stats[i] if turns_stats is not None else None,
+                'valid_actions': valid_action_stats[i] if valid_action_stats is not None else None,
+                'valid_searches': valid_search_stats[i] if valid_search_stats is not None else None,
+            }
+            records.append(record)
+        return records
+
+    def _save_val_replay(self, records, metric_dict, step=0):
+        replay_path = self.config.trainer.get('val_replay_path')
+        if replay_path is None:
+            replay_path = os.path.join(self.config.trainer.default_local_dir, 'val_replay.jsonl')
+
+        replay_dir = os.path.dirname(replay_path)
+        if replay_dir:
+            os.makedirs(replay_dir, exist_ok=True)
+
+        with open(replay_path, 'w', encoding='utf-8') as f:
+            for record in records:
+                f.write(json.dumps(record, ensure_ascii=False) + '\n')
+        print(f'Saved {len(records)} validation replay records to {replay_path}')
+
+        metrics_path = os.path.splitext(replay_path)[0] + '_metrics.json'
+        with open(metrics_path, 'w', encoding='utf-8') as f:
+            json.dump({'step': step, 'metrics': metric_dict}, f, indent=2)
+        print(f'Saved validation metrics to {metrics_path}')
+
     def _validate(self):
         """
         The training loop of PPO with global metric computation.
@@ -481,6 +556,8 @@ class RayPPOTrainer(object):
         import torch
         reward_tensor_lst = []
         data_source_lst = []
+        replay_records = []
+        save_val_replay = self.config.trainer.get('save_val_replay', False)
 
         gen_config = GenerationConfig(
             max_turns=self.config.max_turns,
@@ -534,6 +611,8 @@ class RayPPOTrainer(object):
 
                 reward_tensor_lst.append(reward_tensor)
                 data_source_lst.append(test_batch.non_tensor_batch.get('data_source', ['unknown'] * reward_tensor.shape[0]))
+                if save_val_replay:
+                    replay_records.extend(self._extract_val_replay_records(test_batch, reward_tensor))
         else:
             for batch_dict in self.val_dataloader:
                 timing_raw = {}
@@ -568,6 +647,8 @@ class RayPPOTrainer(object):
 
                     reward_tensor_lst.append(reward_tensor)
                     data_source_lst.append(test_batch.non_tensor_batch.get('data_source', ['unknown'] * reward_tensor.shape[0]))
+                    if save_val_replay:
+                        replay_records.extend(self._extract_val_replay_records(test_batch, reward_tensor))
 
         reward_tensor = torch.cat([rw.sum(-1) for rw in reward_tensor_lst], dim=0).cpu()  # (batch_size,)
         # reward_tensor = torch.cat(reward_tensor_lst, dim=0).sum(-1).cpu()  # (batch_size,)
@@ -583,6 +664,9 @@ class RayPPOTrainer(object):
         metric_dict = {}
         for data_source, rewards in data_source_reward.items():
             metric_dict[f'val/test_score/{data_source}'] = np.mean(rewards)
+
+        if save_val_replay and replay_records:
+            self._save_val_replay(replay_records, metric_dict, step=self.global_steps)
 
         return metric_dict
 

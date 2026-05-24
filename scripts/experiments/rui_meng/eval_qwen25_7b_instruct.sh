@@ -8,6 +8,7 @@ set -euo pipefail
 #   bash scripts/experiments/rui_meng/eval_qwen25_7b_instruct.sh
 #   DATA_DIR=/path/to/your/processed_dir bash scripts/experiments/rui_meng/eval_qwen25_7b_instruct.sh
 #   EVAL_LOGGER=console  # only if you want to skip wandb
+#   VAL_REPLAY_DIR=...   # default: val_replays/${EXPERIMENT_NAME}
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
@@ -16,11 +17,16 @@ TRAIN_FILE="${TRAIN_FILE:-${DATA_DIR}/train.parquet}"
 VAL_FILE="${VAL_FILE:-${DATA_DIR}/test.parquet}"
 
 BASE_MODEL="${BASE_MODEL:-Qwen/Qwen2.5-7B-Instruct}"
+WAND_PROJECT="${WAND_PROJECT:-Search-R1}"
+EXPERIMENT_NAME="${EXPERIMENT_NAME:-eval-qwen2.5-7b-instruct-on-train_nq_hotpotqa}"
+VAL_REPLAY_DIR="${VAL_REPLAY_DIR:-val_replays/${EXPERIMENT_NAME}}"
+VAL_REPLAY_PATH="${VAL_REPLAY_PATH:-${VAL_REPLAY_DIR}/val_replay_$(date +%Y%m%d_%H%M%S).jsonl}"
 
 echo "evaluate_hf_official: local data (HF-equivalent pipeline)"
 echo "  TRAIN_FILE=${TRAIN_FILE}"
 echo "  VAL_FILE=${VAL_FILE}"
 echo "  BASE_MODEL=${BASE_MODEL}"
+echo "  VAL_REPLAY_PATH=${VAL_REPLAY_PATH}"
 
 if [[ ! -f "${TRAIN_FILE}" ]]; then
   echo "Missing train parquet: ${TRAIN_FILE}"
@@ -45,8 +51,6 @@ export WANDB_API_KEY="${WANDB_API_KEY_SEARCH_R1}"
 
 export CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-0,1,2,3,4,5,6,7}"
 
-WAND_PROJECT="${WAND_PROJECT:-Search-R1}"
-EXPERIMENT_NAME="${EXPERIMENT_NAME:-eval-qwen2.5-7b-instruct-on-train_nq_hotpotqa}"
 RETRIEVER_URL="${RETRIEVER_URL:-http://127.0.0.1:8000/retrieve}"
 
 VAL_BATCH_SIZE="${VAL_BATCH_SIZE:-256}"
@@ -107,6 +111,8 @@ PYTHONUNBUFFERED=1 python3 -m verl.trainer.main_ppo \
     actor_rollout_ref.rollout.temperature=1 \
     actor_rollout_ref.actor.state_masking=true \
     trainer.logger="${LOGGER_ARG}" \
+    trainer.save_val_replay=true \
+    trainer.val_replay_path="${VAL_REPLAY_PATH}" \
     +trainer.val_only=true \
     +trainer.val_before_train=true \
     trainer.default_hdfs_dir=null \
