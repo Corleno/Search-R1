@@ -64,7 +64,6 @@ fi
 WAND_PROJECT="${WAND_PROJECT:-Search-R1}"
 BASE_MODEL="${BASE_MODEL:-Qwen/Qwen2.5-3B}"
 EXPERIMENT_NAME="${EXPERIMENT_NAME:-nq_sdpo-qwen2.5-3b-em}"
-N_RESPONSES="${N_RESPONSES:-4}"
 TEACHER_REG="${TEACHER_REG:-actor}"
 RETRIEVER_URL="${RETRIEVER_URL:-http://127.0.0.1:8000/retrieve}"
 
@@ -114,7 +113,7 @@ PYTHONUNBUFFERED=1 python3 -m verl.trainer.main_ppo \
     actor_rollout_ref.rollout.name=vllm \
     actor_rollout_ref.rollout.gpu_memory_utilization=0.6 \
     actor_rollout_ref.rollout.n=1 \
-    actor_rollout_ref.rollout.n_agent="${N_RESPONSES}" \
+    actor_rollout_ref.rollout.n_agent=5 \
     algorithm.no_think_rl=false \
     actor_rollout_ref.rollout.temperature=1 \
     actor_rollout_ref.actor.state_masking=true \

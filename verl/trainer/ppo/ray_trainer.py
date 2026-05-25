@@ -855,8 +855,6 @@ class RayPPOTrainer(object):
             "self_distillation/reprompt_sample_fraction": self_distillation_mask.float().mean().item(),
         }
 
-
-        import pdb; pdb.set_trace()
         return DataProto.from_dict(tensors={
             "teacher_input_ids": teacher_input_ids,
             "teacher_attention_mask": teacher_attention_mask,
