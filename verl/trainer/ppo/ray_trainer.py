@@ -124,6 +124,17 @@ def _is_opd_adv_estimator(adv_estimator: str) -> bool:
     return adv_estimator in ('token_reward_direct', 'token_reward_direct_plus_grpo')
 
 
+def _get_loss_mode(config) -> str:
+    actor_cfg = config.actor_rollout_ref.actor
+    if OmegaConf.select(actor_cfg, 'policy_loss.loss_mode') is not None:
+        return OmegaConf.select(actor_cfg, 'policy_loss.loss_mode')
+    return OmegaConf.select(actor_cfg, 'loss_mode', default='vanilla')
+
+
+def _is_sdpo_mode(config) -> bool:
+    return _get_loss_mode(config) == 'sdpo'
+
+
 def compute_advantage(data: DataProto, adv_estimator, gamma=1.0, lam=1.0, num_repeat=1, config=None):
     # prepare response group
     # TODO: add other ways to estimate advantages
@@ -670,6 +681,197 @@ class RayPPOTrainer(object):
 
         return metric_dict
 
+    @staticmethod
+    def _collect_feedback(
+        include_environment_feedback: bool,
+        reward_extra_infos_dict,
+        batch_size: int,
+    ):
+        feedback_list = [None] * batch_size
+        if include_environment_feedback and reward_extra_infos_dict is not None:
+            raw_feedback = reward_extra_infos_dict.get("feedback", [])
+            for i in range(min(len(raw_feedback), batch_size)):
+                if raw_feedback[i] and isinstance(raw_feedback[i], str) and raw_feedback[i].strip():
+                    feedback_list[i] = raw_feedback[i]
+        return feedback_list
+
+    def _collect_solutions_by_uid(self, batch: DataProto, reward_tensor: torch.Tensor,
+                                  success_reward_threshold: float) -> dict:
+        seq_scores = reward_tensor.sum(dim=-1).detach().cpu().numpy()
+        uids = batch.non_tensor_batch["uid"]
+        success_by_uid = defaultdict(list)
+        for idx, uid in enumerate(uids):
+            if seq_scores[idx] >= success_reward_threshold:
+                success_by_uid[uid].append(idx)
+        return success_by_uid
+
+    @staticmethod
+    def _remove_thinking_trace(text: str) -> str:
+        # Strip chain-of-thought blocks from peer demonstrations before reprompting.
+        think_pat = r"<\s*think\s*>.*?<\s*/\s*think\s*>\s*"
+        redacted_pat = r"<\s*redacted_thinking\s*>.*?<\s*/\s*redacted_thinking\s*>\s*"
+        text = re.sub(think_pat, "", text, flags=re.DOTALL | re.IGNORECASE)
+        return re.sub(redacted_pat, "", text, flags=re.DOTALL | re.IGNORECASE)
+
+    def _get_solution(
+        self,
+        idx: int,
+        success_by_uid: dict,
+        uids: list,
+        response_texts: list,
+        dont_reprompt_on_self_success: bool = False,
+        remove_thinking_from_demonstration: bool = False,
+    ):
+        uid = uids[idx]
+        solution_idxs = success_by_uid[uid]
+        if dont_reprompt_on_self_success:
+            solution_idxs = [j for j in solution_idxs if j != idx]
+        if len(solution_idxs) == 0:
+            return None
+        solution_idx = solution_idxs[0]
+        solution_str = response_texts[solution_idx]
+        if remove_thinking_from_demonstration:
+            solution_str = self._remove_thinking_trace(solution_str)
+        return solution_str
+
+    def _maybe_build_self_distillation_batch(
+        self,
+        batch: DataProto,
+        reward_tensor: torch.Tensor,
+        reward_extra_infos_dict=None,
+    ):
+        from verl.utils.model import compute_position_id_with_mask
+
+        self_distillation_cfg = OmegaConf.select(
+            self.config, 'actor_rollout_ref.actor.self_distillation', default=None)
+        if self_distillation_cfg is None or not _is_sdpo_mode(self.config):
+            return None
+        if 'raw_prompt' not in batch.non_tensor_batch:
+            raise ValueError(
+                "SDPO requires data.return_raw_chat=true so raw_prompt is available for reprompting."
+            )
+
+        device = batch.batch["input_ids"].device
+        response_mask = batch.batch.get(
+            "response_mask",
+            batch.batch["attention_mask"][:, -batch.batch["responses"].shape[-1]:],
+        )
+        responses = batch.batch["responses"]
+        response_texts = [self.tokenizer.decode(ids, skip_special_tokens=True) for ids in responses]
+        prompt_texts = [msgs[-1]["content"] for msgs in batch.non_tensor_batch["raw_prompt"]]
+        batch_size = batch.batch.batch_size[0]
+
+        feedback_list = self._collect_feedback(
+            include_environment_feedback=self_distillation_cfg.get("include_environment_feedback", True),
+            reward_extra_infos_dict=reward_extra_infos_dict,
+            batch_size=batch_size,
+        )
+
+        success_by_uid = self._collect_solutions_by_uid(
+            batch, reward_tensor,
+            success_reward_threshold=self_distillation_cfg.get("success_reward_threshold", 0.5),
+        )
+        solution_strs = [
+            self._get_solution(
+                i,
+                success_by_uid,
+                batch.non_tensor_batch["uid"],
+                response_texts,
+                self_distillation_cfg.get("dont_reprompt_on_self_success", True),
+                self_distillation_cfg.get("remove_thinking_from_demonstration", True),
+            )
+            for i in range(batch_size)
+        ]
+
+        def _build_teacher_message(i: int) -> list:
+            system_messages = batch.non_tensor_batch["raw_prompt"][i][:-1]
+            has_solution = solution_strs[i] is not None
+            has_feedback = feedback_list[i] is not None
+            feedback_only_without_solution = self_distillation_cfg.get(
+                "environment_feedback_only_without_solution", False)
+            use_feedback = has_feedback and (not feedback_only_without_solution or not has_solution)
+
+            solution_section = ""
+            if has_solution:
+                solution_section = self_distillation_cfg.solution_template.format(
+                    successful_previous_attempt=solution_strs[i]
+                )
+
+            feedback_section = ""
+            if use_feedback:
+                feedback_section = self_distillation_cfg.feedback_template.format(
+                    feedback_raw=feedback_list[i]
+                )
+
+            if use_feedback or has_solution:
+                reprompt_text = self_distillation_cfg.reprompt_template.format(
+                    prompt=prompt_texts[i],
+                    solution=solution_section,
+                    feedback=feedback_section,
+                )
+            else:
+                reprompt_text = prompt_texts[i]
+
+            return system_messages + [{"role": "user", "content": reprompt_text}]
+
+        messages = [_build_teacher_message(i) for i in range(batch_size)]
+        teacher_prompt = self.tokenizer.apply_chat_template(
+            messages,
+            tokenize=True,
+            return_tensors="pt",
+            return_dict=True,
+            add_generation_prompt=True,
+            max_length=self_distillation_cfg.get("max_reprompt_len", 10240),
+            padding=True,
+            truncation=True,
+        )
+        teacher_input_ids = torch.cat([teacher_prompt["input_ids"].to(device), responses], dim=1)
+        teacher_attention_mask = torch.cat([teacher_prompt["attention_mask"].to(device), response_mask], dim=1)
+        teacher_position_ids = compute_position_id_with_mask(teacher_attention_mask)
+
+        feedback_only_without_solution = self_distillation_cfg.get(
+            "environment_feedback_only_without_solution", False)
+        feedback_used = [
+            feedback_list[i] is not None
+            and (not feedback_only_without_solution or solution_strs[i] is None)
+            for i in range(batch_size)
+        ]
+        self_distillation_mask = torch.tensor(
+            [solution_strs[i] is not None or feedback_used[i] for i in range(batch_size)],
+            dtype=torch.float32,
+            device=device,
+        )
+
+        uids = set(batch.non_tensor_batch["uid"])
+        num_with_feedback_available = sum(1 for f in feedback_list if f is not None)
+        num_with_feedback_used = sum(1 for f in feedback_used if f)
+        num_with_solution = sum(1 for s in solution_strs if s is not None)
+        metrics = {
+            "self_distillation/success_group_fraction": len(
+                [uid for uid in uids if len(success_by_uid[uid]) > 0]) / max(len(uids), 1),
+            "self_distillation/success_sample_fraction": num_with_solution / batch_size,
+            "self_distillation/feedback_available_fraction": num_with_feedback_available / batch_size,
+            "self_distillation/feedback_used_fraction": num_with_feedback_used / batch_size,
+            "self_distillation/reprompt_sample_fraction": self_distillation_mask.float().mean().item(),
+        }
+        return DataProto.from_dict(tensors={
+            "teacher_input_ids": teacher_input_ids,
+            "teacher_attention_mask": teacher_attention_mask,
+            "teacher_position_ids": teacher_position_ids,
+            "self_distillation_mask": self_distillation_mask,
+        }), metrics
+
+    def _compute_teacher_log_probs(self, batch: DataProto) -> DataProto:
+        """Run the reference (EMA teacher) policy on reprompted teacher inputs."""
+        teacher_batch = DataProto.from_dict(tensors={
+            'input_ids': batch.batch['teacher_input_ids'],
+            'attention_mask': batch.batch['teacher_attention_mask'],
+            'position_ids': batch.batch['teacher_position_ids'],
+            'responses': batch.batch['responses'],
+        })
+        teacher_batch.meta_info = dict(batch.meta_info)
+        out = self.ref_policy_wg.compute_ref_log_prob(teacher_batch)
+        return DataProto.from_dict(tensors={'teacher_log_probs': out.batch['ref_log_prob']})
 
     def init_workers(self):
         """Init resource pool and worker group"""
@@ -697,6 +899,8 @@ class RayPPOTrainer(object):
         elif self.config.algorithm.adv_estimator == 'grpo':
             self.use_critic = False
         elif _is_opd_adv_estimator(self.config.algorithm.adv_estimator):
+            self.use_critic = False
+        elif _is_sdpo_mode(self.config):
             self.use_critic = False
         else:
             raise NotImplementedError
@@ -898,17 +1102,23 @@ class RayPPOTrainer(object):
                         'token_level_rewards', 'advantages', 'returns', 'student_top_k_log_probs',
                         'teacher_on_student_log_probs', 'teacher_top_k_log_probs', 'teacher_entropy',
                         'overlap_mask', 'teacher_in_student_mask', 'student_log_probs_on_teacher_ids',
-                        'union_top_k_log_probs', 'entropys',
+                        'union_top_k_log_probs', 'entropys', 'teacher_input_ids', 'teacher_attention_mask',
+                        'teacher_position_ids', 'self_distillation_mask', 'teacher_log_probs',
                     )
                     for key in batch.batch.keys():
                         if key not in _no_long_cast:
                             batch.batch[key] = batch.batch[key].long()
 
                     if self.use_reference_policy:
-                        # compute reference log_prob
-                        with _timer('ref', timing_raw):
-                            ref_log_prob = self.ref_policy_wg.compute_ref_log_prob(batch)
-                            batch = batch.union(ref_log_prob)
+                        # compute reference log_prob (skipped for SDPO unless KL loss is enabled)
+                        need_ref_log_prob = (
+                            not _is_sdpo_mode(self.config)
+                            or self.config.actor_rollout_ref.actor.use_kl_loss
+                        )
+                        if need_ref_log_prob:
+                            with _timer('ref', timing_raw):
+                                ref_log_prob = self.ref_policy_wg.compute_ref_log_prob(batch)
+                                batch = batch.union(ref_log_prob)
 
                     # compute values
                     if self.use_critic:
@@ -955,7 +1165,23 @@ class RayPPOTrainer(object):
                             reward_tensor = self.reward_fn(batch)
                             batch.batch['token_level_scores'] = reward_tensor
 
-                            if not self.config.actor_rollout_ref.actor.use_kl_loss:
+                            is_sdpo = _is_sdpo_mode(self.config)
+                            if is_sdpo:
+                                sd_result = self._maybe_build_self_distillation_batch(
+                                    batch, reward_tensor, reward_extra_infos_dict=None)
+                                if sd_result is not None:
+                                    sd_batch, sd_metrics = sd_result
+                                    batch = batch.union(sd_batch)
+                                    metrics.update(sd_metrics)
+                                    sd_cfg = OmegaConf.select(
+                                        self.config, 'actor_rollout_ref.actor.self_distillation', default={})
+                                    teacher_reg = sd_cfg.get('teacher_regularization', 'actor')
+                                    if teacher_reg in ('ema', 'ref') and self.use_reference_policy:
+                                        with _timer('sdpo_teacher', timing_raw):
+                                            teacher_lp = self._compute_teacher_log_probs(batch)
+                                            batch = batch.union(teacher_lp)
+
+                            if not self.config.actor_rollout_ref.actor.use_kl_loss and not _is_sdpo_mode(self.config):
                                 batch, kl_metrics = apply_kl_penalty(batch,
                                                                      kl_ctrl=self.kl_ctrl,
                                                                      kl_penalty=self.config.algorithm.kl_penalty)

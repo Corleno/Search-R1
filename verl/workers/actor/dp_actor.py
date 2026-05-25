@@ -19,11 +19,13 @@ import itertools
 from typing import Iterable, Tuple, Union, Optional
 
 import torch
+from omegaconf import OmegaConf
 from torch import nn
 from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
 
 from verl import DataProto
 from verl.trainer.ppo import core_algos
+from verl.trainer.ppo.core_algos import compute_self_distillation_loss
 from verl.workers.actor import BasePPOActor
 from verl.utils.py_functional import append_to_dict
 from verl.utils.torch_functional import logprobs_from_logits, log_probs_and_topk_from_logits, masked_mean
@@ -48,12 +50,39 @@ class DataParallelPPOActor(BasePPOActor):
         super().__init__(config)
         self.actor_module = actor_module
         self.actor_optimizer = actor_optimizer
+        self.teacher_module: Optional[nn.Module] = None
         self.use_remove_padding = self.config.get('use_remove_padding', False)
         print(f'Actor use_remove_padding={self.use_remove_padding}')
         self.ulysses_sequence_parallel_size = self.config.ulysses_sequence_parallel_size
         self.use_ulysses_sp = self.ulysses_sequence_parallel_size > 1
 
         self.compute_entropy_from_logits = torch.compile(verl_F.entropy_from_logits, dynamic=True)
+
+    @staticmethod
+    def _get_loss_mode(config) -> str:
+        if OmegaConf.select(config, 'policy_loss.loss_mode') is not None:
+            return OmegaConf.select(config, 'policy_loss.loss_mode')
+        return config.get('loss_mode', 'vanilla')
+
+    def _update_teacher(self) -> None:
+        from omegaconf import OmegaConf
+        self_distillation_cfg = OmegaConf.select(self.config, 'self_distillation', default=None)
+        if self_distillation_cfg is None or self._get_loss_mode(self.config) != 'sdpo':
+            return
+        if self_distillation_cfg.get('teacher_regularization', 'actor') != 'ema':
+            return
+        update_rate = self_distillation_cfg.get('teacher_update_rate', 0.0)
+        if update_rate == 0.0:
+            return
+        if self.teacher_module is None or self.teacher_module is self.actor_module:
+            return
+        with torch.no_grad():
+            for teacher_param, student_param in zip(
+                self.teacher_module.parameters(),
+                self.actor_module.parameters(),
+            ):
+                student_data = student_param.data.to(device=teacher_param.device)
+                teacher_param.data.mul_(1.0 - update_rate).add_(student_data, alpha=update_rate)
 
     def _forward_micro_batch(
         self,
@@ -62,6 +91,7 @@ class DataParallelPPOActor(BasePPOActor):
         calculate_entropy: bool = False,
         top_k: int = 0,
         student_top_k_ids: Optional[torch.Tensor] = None,
+        module: Optional[nn.Module] = None,
     ) -> Tuple[Optional[torch.Tensor], torch.Tensor, Optional[torch.Tensor], Optional[torch.Tensor]]:
         """
         Returns:
@@ -74,6 +104,7 @@ class DataParallelPPOActor(BasePPOActor):
         entropy = None
         topk_ids = None
         topk_log_probs = None
+        forward_module = module if module is not None else self.actor_module
         with torch.autocast(device_type='cuda', dtype=torch.bfloat16):
             input_ids = micro_batch['input_ids']
             batch_size, seqlen = input_ids.shape
@@ -103,10 +134,10 @@ class DataParallelPPOActor(BasePPOActor):
                 input_ids_rmpad_rolled = input_ids_rmpad_rolled.squeeze(0)  # ((total_nnz / sp) + pad)
 
                 # only pass input_ids and position_ids to enable flash_attn_varlen
-                output = self.actor_module(input_ids=input_ids_rmpad,
-                                           attention_mask=None,
-                                           position_ids=position_ids_rmpad,
-                                           use_cache=False)  # prevent model thinks we are generating
+                output = forward_module(input_ids=input_ids_rmpad,
+                                        attention_mask=None,
+                                        position_ids=position_ids_rmpad,
+                                        use_cache=False)  # prevent model thinks we are generating
                 logits_rmpad = output.logits.squeeze(0)  # (total_nnz, vocab_size)
 
                 logits_rmpad.div_(temperature)
@@ -173,10 +204,10 @@ class DataParallelPPOActor(BasePPOActor):
 
             else:  # not using rmpad and no ulysses sp
                 entropy = None
-                output = self.actor_module(input_ids=input_ids,
-                                           attention_mask=attention_mask,
-                                           position_ids=position_ids,
-                                           use_cache=False)  # prevent model thinks we are generating
+                output = forward_module(input_ids=input_ids,
+                                      attention_mask=attention_mask,
+                                      position_ids=position_ids,
+                                      use_cache=False)  # prevent model thinks we are generating
                 logits = output.logits
                 logits.div_(temperature)
                 logits = logits[:, -response_length - 1:-1, :]  # (bsz, response_length, vocab)
@@ -441,6 +472,20 @@ class DataParallelPPOActor(BasePPOActor):
         self.gradient_accumulation = self.config.ppo_mini_batch_size // self.config.ppo_micro_batch_size
         temperature = data.meta_info['temperature']  # temperature must be in the data.meta_info to avoid slient error
 
+        loss_mode = self._get_loss_mode(self.config)
+        self_distillation_enabled = loss_mode == 'sdpo'
+        self_distillation_cfg = OmegaConf.select(self.config, 'self_distillation', default=None)
+        self_distillation_required_keys = {
+            'teacher_input_ids',
+            'teacher_attention_mask',
+            'teacher_position_ids',
+            'self_distillation_mask',
+        }
+        if self_distillation_enabled:
+            assert self_distillation_required_keys.issubset(set(data.batch.keys())), (
+                f"SDPO missing keys: {self_distillation_required_keys - set(data.batch.keys())}"
+            )
+
         select_keys = ['responses', 'input_ids', 'attention_mask', 'position_ids', 'old_log_probs', 'advantages']
         if 'response_mask' in data.batch.keys():
             select_keys.append('response_mask')
@@ -448,6 +493,10 @@ class DataParallelPPOActor(BasePPOActor):
             select_keys.append('loss_mask')
         if self.config.use_kl_loss:
             select_keys.append('ref_log_prob')
+        if self_distillation_enabled:
+            select_keys.extend(list(self_distillation_required_keys))
+            if 'teacher_log_probs' in data.batch.keys():
+                select_keys.append('teacher_log_probs')
         if 'student_top_k_ids' in data.batch.keys():
             select_keys.append('student_top_k_ids')
         if 'student_top_k_log_probs' in data.batch.keys():
@@ -467,6 +516,7 @@ class DataParallelPPOActor(BasePPOActor):
         dataloader = batch.split(self.config.ppo_mini_batch_size)
 
         metrics = {}
+        did_update = False
         for batch_idx, data in enumerate(dataloader):
             # split batch into micro_batches
             mini_batch = data
@@ -497,7 +547,9 @@ class DataParallelPPOActor(BasePPOActor):
                 entropy_coeff = self.config.entropy_coeff
 
                 calculate_entropy = entropy_coeff != 0
-                if advantages.dim() == 3:
+                self_distillation_mask = data.get('self_distillation_mask') if self_distillation_enabled else None
+
+                if advantages.dim() == 3 and not self_distillation_enabled:
                     top_k = advantages.shape[-1]
                     student_top_k_ids = None
                     if 'union_top_k_ids' in data:
@@ -517,26 +569,64 @@ class DataParallelPPOActor(BasePPOActor):
                         data, temperature=temperature, calculate_entropy=calculate_entropy, top_k=0)
                     log_prob_for_loss = log_prob
 
-                pg_loss, pg_clipfrac, ppo_kl = core_algos.compute_policy_loss(
-                    old_log_prob=old_log_prob,
-                    log_prob=log_prob_for_loss,
-                    advantages=advantages,
-                    eos_mask=response_mask,
-                    cliprange=clip_ratio)
-
-                if entropy is not None:
-                    entropy_loss = verl_F.masked_mean(entropy, response_mask)
+                if self_distillation_enabled:
+                    if 'teacher_log_probs' in data:
+                        teacher_log_prob = data['teacher_log_probs']
+                    else:
+                        teacher_inputs = {
+                            'responses': data['responses'],
+                            'input_ids': data['teacher_input_ids'],
+                            'attention_mask': data['teacher_attention_mask'],
+                            'position_ids': data['teacher_position_ids'],
+                        }
+                        teacher_model = self.teacher_module or self.actor_module
+                        with torch.no_grad():
+                            _, teacher_log_prob, _, _ = self._forward_micro_batch(
+                                teacher_inputs,
+                                temperature=temperature,
+                                calculate_entropy=False,
+                                top_k=0,
+                                module=teacher_model,
+                            )
+                    pg_loss, pg_metrics = compute_self_distillation_loss(
+                        student_log_probs=log_prob,
+                        teacher_log_probs=teacher_log_prob,
+                        response_mask=response_mask,
+                        self_distillation_config=self_distillation_cfg,
+                        old_log_probs=old_log_prob,
+                        self_distillation_mask=self_distillation_mask,
+                    )
+                    log_metrics = {
+                        'actor/pg_loss': pg_loss.detach().item(),
+                        'self_distillation/empty_target_batch': float(
+                            self_distillation_mask.sum().item() == 0) if self_distillation_mask is not None else 0.0,
+                    }
+                    log_metrics.update(pg_metrics)
+                    entropy_loss = torch.tensor(0.0, device=log_prob.device)
+                    if calculate_entropy and entropy is not None:
+                        entropy_loss = verl_F.masked_mean(entropy, response_mask)
+                    policy_loss = pg_loss - entropy_loss * entropy_coeff
                 else:
-                    entropy_loss = torch.tensor(0.0, device=log_prob_for_loss.device)
+                    pg_loss, pg_clipfrac, ppo_kl = core_algos.compute_policy_loss(
+                        old_log_prob=old_log_prob,
+                        log_prob=log_prob_for_loss,
+                        advantages=advantages,
+                        eos_mask=response_mask,
+                        cliprange=clip_ratio)
 
-                policy_loss = pg_loss - entropy_loss * entropy_coeff
+                    if entropy is not None:
+                        entropy_loss = verl_F.masked_mean(entropy, response_mask)
+                    else:
+                        entropy_loss = torch.tensor(0.0, device=log_prob_for_loss.device)
 
-                log_metrics = {
-                    'actor/entropy_loss': entropy_loss.detach().item(),
-                    'actor/pg_loss': pg_loss.detach().item(),
-                    'actor/pg_clipfrac': pg_clipfrac.detach().item(),
-                    'actor/ppo_kl': ppo_kl.detach().item(),
-                }
+                    policy_loss = pg_loss - entropy_loss * entropy_coeff
+
+                    log_metrics = {
+                        'actor/entropy_loss': entropy_loss.detach().item(),
+                        'actor/pg_loss': pg_loss.detach().item(),
+                        'actor/pg_clipfrac': pg_clipfrac.detach().item(),
+                        'actor/ppo_kl': ppo_kl.detach().item(),
+                    }
                 if self.config.use_kl_loss:
                     ref_log_prob = data['ref_log_prob']
                     if advantages.dim() == 3:
@@ -557,7 +647,11 @@ class DataParallelPPOActor(BasePPOActor):
                 append_to_dict(metrics, log_metrics)
 
             grad_norm = self._optimizer_step()
+            if torch.isfinite(grad_norm).item():
+                did_update = True
             data = {'actor/grad_norm': grad_norm.detach().item()}
             append_to_dict(metrics, data)
         self.actor_optimizer.zero_grad()
+        if did_update:
+            self._update_teacher()
         return metrics

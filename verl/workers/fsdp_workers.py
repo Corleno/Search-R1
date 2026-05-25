@@ -327,6 +327,13 @@ class ActorRolloutRefWorker(Worker):
             self.actor = DataParallelPPOActor(config=self.config.actor,
                                               actor_module=self.actor_module_fsdp,
                                               actor_optimizer=self.actor_optimizer)
+            loss_mode = OmegaConf.select(self.config.actor, 'policy_loss.loss_mode',
+                                         default=OmegaConf.select(self.config.actor, 'loss_mode', default='vanilla'))
+            if loss_mode == 'sdpo':
+                sd_cfg = OmegaConf.select(self.config.actor, 'self_distillation', default=None)
+                if sd_cfg is not None and sd_cfg.get('teacher_regularization', 'actor') == 'ema':
+                    if hasattr(self, 'ref_module_fsdp'):
+                        self.actor.teacher_module = self.ref_module_fsdp
 
         if self._is_rollout:
             self.rollout, self.rollout_sharding_manager = self._build_rollout()

@@ -25,6 +25,36 @@ actor_rollout_ref:
     use_remove_padding: False
   actor:
     strategy: fsdp  # This is for backward-compatibility
+    policy_loss:
+      loss_mode: vanilla  # vanilla | sdpo
+    self_distillation:
+      full_logit_distillation: false
+      distillation_topk: null
+      distillation_add_tail: true
+      alpha: 1.0
+      success_reward_threshold: 0.5
+      teacher_regularization: actor  # actor | ema | ref
+      teacher_update_rate: 0.05
+      max_reprompt_len: 10240
+      dont_reprompt_on_self_success: true
+      remove_thinking_from_demonstration: true
+      include_environment_feedback: false
+      environment_feedback_only_without_solution: true
+      is_clip: 2.0
+      reprompt_template: |-
+        {prompt}{solution}{feedback}
+
+        Correctly solve the original question.
+      solution_template: |-
+
+        Correct solution:
+
+        {successful_previous_attempt}
+      feedback_template: |-
+
+        The following is feedback from your unsuccessful earlier attempt:
+
+        {feedback_raw}
     ppo_mini_batch_size: 256
     ppo_micro_batch_size: 64
     use_dynamic_bsz: False
