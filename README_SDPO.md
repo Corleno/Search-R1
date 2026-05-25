@@ -50,14 +50,15 @@ python3 -m verl.trainer.main_ppo --config-name sdpo \
 | `actor_rollout_ref.actor.policy_loss.loss_mode` | Set to `sdpo` |
 | `actor_rollout_ref.actor.self_distillation.*` | Reprompt templates, `success_reward_threshold`, `is_clip`, etc. |
 | `data.return_raw_chat` | **Required** (`true`) for reprompting |
-| `actor_rollout_ref.rollout.n` | Samples per prompt (e.g. 4–8) |
+| `actor_rollout_ref.rollout.n_agent` | Independent search trajectories per prompt when `do_search=true` (e.g. 4–8) |
+| `actor_rollout_ref.rollout.n` | Keep at `1` for search; use `>1` only for single-shot (non-search) rollouts |
 | `algorithm.adv_estimator` | Use `grpo` (advantages computed but not used in SDPO loss) |
 | `actor_rollout_ref.actor.self_distillation.teacher_regularization` | `actor` (default): same weights; `ema`/`ref`: use colocated ref worker |
 
 ## Search compatibility
 
 - Uses the same `do_search`, `max_turns`, retriever URL, and **`state_masking`** / `loss_mask` as GRPO scripts.
-- `uid` comes from dataset `index` so group-wise success mining aligns with `rollout.n` repeats.
+- `uid` comes from dataset `index` so group-wise success mining aligns with `rollout.n_agent` repeats.
 
 ## OPD compatibility
 

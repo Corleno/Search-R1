@@ -45,7 +45,8 @@ python3 -m verl.trainer.main_ppo \
     actor_rollout_ref.rollout.name=vllm \
     actor_rollout_ref.rollout.tensor_model_parallel_size=1 \
     actor_rollout_ref.rollout.gpu_memory_utilization=0.6 \
-    actor_rollout_ref.rollout.n="${N_RESPONSES}" \
+    actor_rollout_ref.rollout.n=1 \
+    actor_rollout_ref.rollout.n_agent="${N_RESPONSES}" \
     reward_model.enable=false \
     trainer.logger=['console','wandb'] \
     trainer.project_name="${WANDB_PROJECT}" \
