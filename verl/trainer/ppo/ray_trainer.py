@@ -783,8 +783,8 @@ class RayPPOTrainer(object):
             for i in range(batch_size)
         ]
 
-        def _build_teacher_message(i: int) -> list:
-            system_messages = batch.non_tensor_batch["raw_prompt"][i][:-1]
+        def _build_teacher_message(i: int) -> tuple[list, bool]:
+            system_messages = list(batch.non_tensor_batch["raw_prompt"][i][:-1])
             has_solution = solution_strs[i] is not None
             has_feedback = feedback_list[i] is not None
             feedback_only_without_solution = self_distillation_cfg.get(
@@ -803,7 +803,8 @@ class RayPPOTrainer(object):
                     feedback_raw=feedback_list[i]
                 )
 
-            if use_feedback or has_solution:
+            message_written = use_feedback or has_solution
+            if message_written:
                 reprompt_text = self_distillation_cfg.reprompt_template.format(
                     prompt=prompt_texts[i],
                     solution=solution_section,
@@ -812,9 +813,11 @@ class RayPPOTrainer(object):
             else:
                 reprompt_text = prompt_texts[i]
 
-            return system_messages + [{"role": "user", "content": reprompt_text}]
+            return system_messages + [{"role": "user", "content": reprompt_text}], message_written
 
-        messages = [_build_teacher_message(i) for i in range(batch_size)]
+        teacher_messages = [_build_teacher_message(i) for i in range(batch_size)]
+        messages, message_written_flags = zip(*teacher_messages)
+        messages = list(messages)
         teacher_prompt = self.tokenizer.apply_chat_template(
             messages,
             tokenize=True,
@@ -837,10 +840,7 @@ class RayPPOTrainer(object):
             for i in range(batch_size)
         ]
         self_distillation_mask = torch.tensor(
-            [solution_strs[i] is not None or feedback_used[i] for i in range(batch_size)],
-            dtype=torch.float32,
-            device=device,
-        )
+            message_written_flags, dtype=torch.float32, device=device)
 
         uids = set(batch.non_tensor_batch["uid"])
         num_with_feedback_available = sum(1 for f in feedback_list if f is not None)
@@ -854,6 +854,9 @@ class RayPPOTrainer(object):
             "self_distillation/feedback_used_fraction": num_with_feedback_used / batch_size,
             "self_distillation/reprompt_sample_fraction": self_distillation_mask.float().mean().item(),
         }
+
+
+        import pdb; pdb.set_trace()
         return DataProto.from_dict(tensors={
             "teacher_input_ids": teacher_input_ids,
             "teacher_attention_mask": teacher_attention_mask,
