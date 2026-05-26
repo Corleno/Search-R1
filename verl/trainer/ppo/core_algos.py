@@ -318,17 +318,10 @@ def kl_penalty(logprob: torch.FloatTensor, ref_logprob: torch.FloatTensor, kl_pe
     raise NotImplementedError
 
 
-def agg_loss(loss_mat: torch.Tensor, loss_mask: torch.Tensor, loss_agg_mode: str = "token-mean",
-             batch_num_tokens: Optional[torch.Tensor] = None) -> torch.Tensor:
+def agg_loss(loss_mat: torch.Tensor, loss_mask: torch.Tensor, loss_agg_mode: str = "token-mean") -> torch.Tensor:
     """Aggregate per-token loss matrix into a scalar."""
     if loss_agg_mode == "token-mean":
         return verl_F.masked_mean(loss_mat, loss_mask)
-    if loss_agg_mode == "seq-mean-token-sum":
-        seq_loss = (loss_mat * loss_mask).sum(dim=-1)
-        seq_mask = loss_mask.sum(dim=-1).clamp(min=1.0)
-        return (seq_loss / seq_mask).mean()
-    if loss_agg_mode == "sum":
-        return (loss_mat * loss_mask).sum() / loss_mask.sum().clamp(min=1.0)
     raise ValueError(f"Invalid loss_agg_mode: {loss_agg_mode}")
 
 
@@ -427,10 +420,14 @@ def compute_self_distillation_loss(
     if rollout_is_weights is not None:
         per_token_loss = per_token_loss * rollout_is_weights
 
-    loss = agg_loss(
-        loss_mat=per_token_loss,
-        loss_mask=loss_mask,
-        loss_agg_mode=loss_agg_mode,
-        batch_num_tokens=loss_mask.sum().clamp(min=1.0),
-    )
+
+    # if not all zeros in loss_mask, caculate the loss using agg_loss, otherwise loss is 0
+    if not torch.all(loss_mask == 0):
+        loss = agg_loss(
+            loss_mat=per_token_loss,
+            loss_mask=loss_mask,
+            loss_agg_mode=loss_agg_mode,
+        )
+    else:
+        loss = torch.tensor(0.0, device=per_token_loss.device)
     return loss, metrics
