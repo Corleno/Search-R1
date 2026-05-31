@@ -48,7 +48,7 @@ export OMP_NUM_THREADS="${OMP_NUMBER_THREADS:-${OMP_NUM_THREADS:-1}}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
-DATA_DIR="${DATA_DIR:-/data/nq_hotpotqa_train}"
+DATA_DIR="${DATA_DIR:-./data/nq_hotpotqa_train}"
 TRAIN_FILE="${DATA_DIR}/train.parquet"
 VAL_FILE="${DATA_DIR}/test.parquet"
 

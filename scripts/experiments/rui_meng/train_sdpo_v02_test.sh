@@ -48,7 +48,7 @@ export OMP_NUM_THREADS="${OMP_NUMBER_THREADS:-${OMP_NUM_THREADS:-1}}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
-DATA_DIR="${DATA_DIR:-/data/nq_hotpotqa_train}"
+DATA_DIR="${DATA_DIR:-./data/nq_hotpotqa_train}"
 TRAIN_FILE="${DATA_DIR}/train.parquet"
 VAL_FILE="${DATA_DIR}/test.parquet"
 
@@ -63,7 +63,7 @@ fi
 
 WAND_PROJECT="${WAND_PROJECT:-Search-R1}"
 BASE_MODEL="${BASE_MODEL:-Qwen/Qwen2.5-3B}"
-EXPERIMENT_NAME="${EXPERIMENT_NAME:-nq_sdpo-qwen2.5-3b-em}"
+EXPERIMENT_NAME="${EXPERIMENT_NAME:-nq_sdpo-qwen2.5-3b-em-test}"
 TEACHER_REG="${TEACHER_REG:-actor}"
 RETRIEVER_URL="${RETRIEVER_URL:-http://127.0.0.1:8000/retrieve}"
 
@@ -118,7 +118,7 @@ PYTHONUNBUFFERED=1 python3 -m verl.trainer.main_ppo \
     actor_rollout_ref.rollout.temperature=1 \
     actor_rollout_ref.actor.state_masking=true \
     reward_model.enable=false \
-    trainer.logger=['console'] \
+    trainer.logger=['console','wandb'] \
     +trainer.val_only=false \
     trainer.val_before_train=false \
     trainer.default_hdfs_dir=null \
