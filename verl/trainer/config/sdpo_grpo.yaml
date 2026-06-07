@@ -1,5 +1,5 @@
-# SDPO (Self-Distilled Policy Optimization) preset for Search-R1 + search.
-# Usage: python3 -m verl.trainer.main_ppo --config-name sdpo
+# SDPO+GRPO hybrid preset: sum of self-distillation loss and GRPO clipped policy loss.
+# Usage: python3 -m verl.trainer.main_ppo --config-name sdpo_grpo
 defaults:
   - ppo_trainer
   - _self_
@@ -10,14 +10,19 @@ data:
 actor_rollout_ref:
   actor:
     policy_loss:
-      loss_mode: sdpo
+      loss_mode: sdpo_grpo
+      sdpo_coef: 1.0
+      grpo_coef: 1.0
     self_distillation:
-      filter_reprompt_before_update: true
+      filter_reprompt_before_update: false
       max_reprompt_len: 10240
       is_clip: 2.0
       teacher_regularization: actor
       full_logit_distillation: false
       alpha: 1.0
+    use_kl_loss: true
+    kl_loss_coef: 0.001
+    kl_loss_type: low_var_kl
     optim:
       lr: 1e-6
   ref:

@@ -536,6 +536,18 @@ class DataProto:
 
         return DataProto(batch=new_batch, non_tensor_batch=non_tensor_batch, meta_info=data[0].meta_info)
 
+    def select_by_mask(self, mask: torch.Tensor) -> 'DataProto':
+        """Return a new DataProto with rows where mask is True."""
+        if mask.dtype != torch.bool:
+            mask = mask.bool()
+        indices = mask.nonzero(as_tuple=True)[0]
+        if indices.device.type != 'cpu':
+            indices = indices.cpu()
+        indices_np = indices.detach().numpy()
+        batch = self.batch[indices]
+        non_tensor_batch = {key: val[indices_np] for key, val in self.non_tensor_batch.items()}
+        return DataProto(batch=batch, non_tensor_batch=non_tensor_batch, meta_info=self.meta_info)
+
     def reorder(self, indices):
         """
         Note that this operation is in-place

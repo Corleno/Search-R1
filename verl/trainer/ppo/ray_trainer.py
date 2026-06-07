@@ -131,7 +131,11 @@ def _get_loss_mode(config) -> str:
     return OmegaConf.select(actor_cfg, 'loss_mode', default='vanilla')
 
 
-def _is_sdpo_mode(config) -> bool:
+def _uses_self_distillation(config) -> bool:
+    return _get_loss_mode(config) in ('sdpo', 'sdpo_grpo')
+
+
+def _is_sdpo_only_mode(config) -> bool:
     return _get_loss_mode(config) == 'sdpo'
 
 
@@ -744,7 +748,7 @@ class RayPPOTrainer(object):
 
         self_distillation_cfg = OmegaConf.select(
             self.config, 'actor_rollout_ref.actor.self_distillation', default=None)
-        if self_distillation_cfg is None or not _is_sdpo_mode(self.config):
+        if self_distillation_cfg is None or not _uses_self_distillation(self.config):
             return None
         if 'raw_prompt' not in batch.non_tensor_batch:
             raise ValueError(
@@ -832,6 +836,10 @@ class RayPPOTrainer(object):
         teacher_attention_mask = torch.cat([teacher_prompt["attention_mask"].to(device), response_mask], dim=1)
         teacher_position_ids = compute_position_id_with_mask(teacher_attention_mask)
 
+        response_len = responses.shape[1]
+        student_prompt_valid_lens = batch.batch["attention_mask"][:, :-response_len].sum(dim=1).float()
+        teacher_prompt_valid_lens = teacher_attention_mask[:, :-response_len].sum(dim=1).float()
+
         feedback_only_without_solution = self_distillation_cfg.get(
             "environment_feedback_only_without_solution", False)
         feedback_used = [
@@ -853,6 +861,12 @@ class RayPPOTrainer(object):
             "self_distillation/feedback_available_fraction": num_with_feedback_available / batch_size,
             "self_distillation/feedback_used_fraction": num_with_feedback_used / batch_size,
             "self_distillation/reprompt_sample_fraction": self_distillation_mask.float().mean().item(),
+            "self_distillation/student_prompt_valid_len_mean": student_prompt_valid_lens.mean().item(),
+            "self_distillation/teacher_prompt_valid_len_mean": teacher_prompt_valid_lens.mean().item(),
+            "self_distillation/teacher_prompt_valid_len_delta_mean": (
+                teacher_prompt_valid_lens - student_prompt_valid_lens).mean().item(),
+            "self_distillation/student_seq_len_mean": batch.batch["input_ids"].shape[1],
+            "self_distillation/teacher_seq_len_mean": teacher_input_ids.shape[1],
         }
 
         return DataProto.from_dict(tensors={
@@ -901,7 +915,7 @@ class RayPPOTrainer(object):
             self.use_critic = False
         elif _is_opd_adv_estimator(self.config.algorithm.adv_estimator):
             self.use_critic = False
-        elif _is_sdpo_mode(self.config):
+        elif _uses_self_distillation(self.config):
             self.use_critic = False
         else:
             raise NotImplementedError
@@ -981,6 +995,44 @@ class RayPPOTrainer(object):
                                                     partitions=global_partition_lst,
                                                     prefix=logging_prefix)
         metrics.update(global_balance_stats)
+
+    def _filter_and_rebalance_sdpo_actor_batch(self, batch: DataProto, metrics: dict):
+        """Keep reprompt-active samples and rebalance across DP ranks before update_actor."""
+        if not _is_sdpo_only_mode(self.config):
+            return batch, True
+
+        sd_cfg = OmegaConf.select(self.config, 'actor_rollout_ref.actor.self_distillation', default={})
+        if not sd_cfg.get('filter_reprompt_before_update', True):
+            return batch, True
+
+        if 'self_distillation_mask' not in batch.batch.keys():
+            return batch, True
+
+        mask = batch.batch['self_distillation_mask'] > 0
+        original_size = len(batch)
+        num_active = int(mask.sum().item())
+        metrics['self_distillation/original_batch_size_before_actor_filter'] = original_size
+        metrics['self_distillation/reprompt_samples_before_actor_filter'] = num_active
+
+        if num_active == 0:
+            metrics['self_distillation/empty_target_batch'] = 1.0
+            return None, False
+
+        batch = batch.select_by_mask(mask)
+        world_size = self.actor_rollout_wg.world_size
+        if num_active < world_size:
+            metrics['self_distillation/skipped_update_insufficient_samples'] = 1.0
+            return None, False
+
+        n = (num_active // world_size) * world_size
+        if n < num_active:
+            batch.reorder(torch.arange(n))
+            metrics['self_distillation/trimmed_for_dp'] = num_active - n
+
+        batch.meta_info['global_token_num'] = torch.sum(batch.batch['attention_mask'], dim=-1).tolist()
+        self._balance_batch(batch, metrics, logging_prefix='sdpo_reprompt_seqlen')
+        metrics['self_distillation/effective_batch_size_after_filter'] = len(batch)
+        return batch, True
 
     def fit(self):
         """
@@ -1113,7 +1165,7 @@ class RayPPOTrainer(object):
                     if self.use_reference_policy:
                         # compute reference log_prob (skipped for SDPO unless KL loss is enabled)
                         need_ref_log_prob = (
-                            not _is_sdpo_mode(self.config)
+                            not _is_sdpo_only_mode(self.config)
                             or self.config.actor_rollout_ref.actor.use_kl_loss
                         )
                         if need_ref_log_prob:
@@ -1166,7 +1218,7 @@ class RayPPOTrainer(object):
                             reward_tensor = self.reward_fn(batch)
                             batch.batch['token_level_scores'] = reward_tensor
 
-                            is_sdpo = _is_sdpo_mode(self.config)
+                            is_sdpo = _uses_self_distillation(self.config)
                             if is_sdpo:
                                 sd_result = self._maybe_build_self_distillation_batch(
                                     batch, reward_tensor, reward_extra_infos_dict=None)
@@ -1182,7 +1234,7 @@ class RayPPOTrainer(object):
                                             teacher_lp = self._compute_teacher_log_probs(batch)
                                             batch = batch.union(teacher_lp)
 
-                            if not self.config.actor_rollout_ref.actor.use_kl_loss and not _is_sdpo_mode(self.config):
+                            if not self.config.actor_rollout_ref.actor.use_kl_loss and not _uses_self_distillation(self.config):
                                 batch, kl_metrics = apply_kl_penalty(batch,
                                                                      kl_ctrl=self.kl_ctrl,
                                                                      kl_penalty=self.config.algorithm.kl_penalty)
@@ -1210,9 +1262,12 @@ class RayPPOTrainer(object):
                         with _timer('update_actor', timing_raw):
                             if self.config.do_search and self.config.actor_rollout_ref.actor.state_masking:
                                 batch, metrics = self._create_loss_mask(batch, metrics)
-                            actor_output = self.actor_rollout_wg.update_actor(batch)
-                        actor_output_metrics = reduce_metrics(actor_output.meta_info['metrics'])
-                        metrics.update(actor_output_metrics)
+                            actor_batch, should_update_actor = self._filter_and_rebalance_sdpo_actor_batch(
+                                batch, metrics)
+                            if should_update_actor:
+                                actor_output = self.actor_rollout_wg.update_actor(actor_batch)
+                                actor_output_metrics = reduce_metrics(actor_output.meta_info['metrics'])
+                                metrics.update(actor_output_metrics)
 
                     # validate
                     if self.val_reward_fn is not None and self.config.trainer.test_freq > 0 and \

@@ -26,8 +26,11 @@ actor_rollout_ref:
   actor:
     strategy: fsdp  # This is for backward-compatibility
     policy_loss:
-      loss_mode: vanilla  # vanilla | sdpo
+      loss_mode: vanilla  # vanilla | sdpo | sdpo_grpo
+      sdpo_coef: 1.0
+      grpo_coef: 1.0
     self_distillation:
+      filter_reprompt_before_update: true
       full_logit_distillation: false
       distillation_topk: null
       distillation_add_tail: true
@@ -41,6 +44,7 @@ actor_rollout_ref:
       include_environment_feedback: false
       environment_feedback_only_without_solution: true
       is_clip: 2.0
+      debug_print_inputs: false
       reprompt_template: |-
         {prompt}{solution}{feedback}
 

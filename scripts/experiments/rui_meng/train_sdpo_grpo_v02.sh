@@ -1,16 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Personal SDPO (Self-Distilled Policy Optimization) script, parallel to train_grpo_v02.sh
-# and train_opd_v02.sh. No external teacher — policy distills from reprompted self-context
-# (see README_SDPO.md). Search is enabled like GRPO/OPD v02.
-# Default data dir matches train_grpo_v02.sh; override DATA_DIR for other parquet trees.
+# Personal SDPO+GRPO hybrid script: actor loss = SDPO self-distillation + GRPO clipped policy loss.
+# Hyper-parameters match train_grpo_v02.sh; SDPO wiring from train_sdpo_v02.sh (see README_SDPO.md).
+# Search is enabled like GRPO/OPD v02.
 #
 # Usage:
 #   From repo root (recommended):
-#     ./scripts/experiments/rui_meng/train_sdpo_v02.sh
+#     ./scripts/experiments/rui_meng/train_sdpo_grpo_v02.sh
 #   Or from anywhere:
-#     bash /path/to/Search-R1/scripts/experiments/rui_meng/train_sdpo_v02.sh
+#     bash /path/to/Search-R1/scripts/experiments/rui_meng/train_sdpo_grpo_v02.sh
 #
 # Prerequisites:
 #   - Cwd resolves to repo root (script cd's there).
@@ -22,7 +21,7 @@ set -euo pipefail
 #   CUDA_VISIBLE_DEVICES — limits which GPUs the process sees; must match trainer.n_gpus_per_node below.
 #   N_GPUS_PER_NODE — overrides auto count from CUDA_VISIBLE_DEVICES (comma-separated IDs).
 #   DATA_DIR, WAND_PROJECT, BASE_MODEL, EXPERIMENT_NAME
-#   N_RESPONSES — independent search trajectories per prompt (actor_rollout_ref.rollout.n_agent; default 4)
+#   N_RESPONSES — independent search trajectories per prompt (actor_rollout_ref.rollout.n_agent; default 5)
 #   TEACHER_REG — self-distillation teacher: actor | ema | ref (default actor)
 #   RETRIEVER_URL — full retrieve endpoint (default http://127.0.0.1:8000/retrieve)
 #   TMPDIR, PYTORCH_CUDA_ALLOC_CONF, VLLM_ATTENTION_BACKEND
@@ -48,7 +47,7 @@ export OMP_NUM_THREADS="${OMP_NUMBER_THREADS:-${OMP_NUM_THREADS:-1}}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
-DATA_DIR="${DATA_DIR:-./data/nq_hotpotqa_train}"
+DATA_DIR="${DATA_DIR:-/data/nq_hotpotqa_train}"
 TRAIN_FILE="${DATA_DIR}/train.parquet"
 VAL_FILE="${DATA_DIR}/test.parquet"
 
@@ -63,7 +62,7 @@ fi
 
 WAND_PROJECT="${WAND_PROJECT:-Search-R1}"
 BASE_MODEL="${BASE_MODEL:-Qwen/Qwen2.5-3B}"
-EXPERIMENT_NAME="${EXPERIMENT_NAME:-nq_sdpo-qwen2.5-3b-em-test}"
+EXPERIMENT_NAME="${EXPERIMENT_NAME:-nq_sdpo-grpo-qwen2.5-3b-em}"
 TEACHER_REG="${TEACHER_REG:-actor}"
 RETRIEVER_URL="${RETRIEVER_URL:-http://127.0.0.1:8000/retrieve}"
 
@@ -83,15 +82,15 @@ cd "${PROJECT_ROOT}"
 
 export PYTHONUNBUFFERED=1
 PYTHONUNBUFFERED=1 python3 -m verl.trainer.main_ppo \
-    --config-name sdpo \
+    --config-name sdpo_grpo \
     algorithm.adv_estimator=grpo \
     data.train_files="${TRAIN_FILE}" \
     data.val_files="${VAL_FILE}" \
     data.train_data_num=null \
     data.val_data_num=null \
     data.return_raw_chat=true \
-    data.train_batch_size=16 \
-    data.val_batch_size=16 \
+    data.train_batch_size=512 \
+    data.val_batch_size=256 \
     data.max_prompt_length=4096 \
     data.max_response_length=500 \
     data.max_start_length=2048 \
@@ -102,14 +101,17 @@ PYTHONUNBUFFERED=1 python3 -m verl.trainer.main_ppo \
     actor_rollout_ref.model.use_remove_padding=True \
     actor_rollout_ref.actor.optim.lr=1e-6 \
     actor_rollout_ref.actor.optim.lr_warmup_steps_ratio=0.285 \
-    actor_rollout_ref.actor.use_kl_loss=false \
-    actor_rollout_ref.actor.ppo_mini_batch_size=16 \
-    actor_rollout_ref.actor.ppo_micro_batch_size=16 \
+    actor_rollout_ref.actor.use_kl_loss=true \
+    actor_rollout_ref.actor.kl_loss_coef=0.001 \
+    actor_rollout_ref.actor.kl_loss_type=low_var_kl \
+    actor_rollout_ref.actor.ppo_mini_batch_size=256 \
+    actor_rollout_ref.actor.ppo_micro_batch_size=64 \
     actor_rollout_ref.actor.fsdp_config.param_offload=true \
     actor_rollout_ref.actor.fsdp_config.grad_offload=true \
     actor_rollout_ref.actor.fsdp_config.optimizer_offload=true \
-    actor_rollout_ref.actor.self_distillation.debug_print_inputs=true \
-    actor_rollout_ref.rollout.log_prob_micro_batch_size=16 \
+    actor_rollout_ref.ref.log_prob_micro_batch_size=128 \
+    actor_rollout_ref.ref.fsdp_config.param_offload=True \
+    actor_rollout_ref.rollout.log_prob_micro_batch_size=128 \
     actor_rollout_ref.rollout.tensor_model_parallel_size=1 \
     actor_rollout_ref.rollout.name=vllm \
     actor_rollout_ref.rollout.gpu_memory_utilization=0.6 \
@@ -119,9 +121,9 @@ PYTHONUNBUFFERED=1 python3 -m verl.trainer.main_ppo \
     actor_rollout_ref.rollout.temperature=1 \
     actor_rollout_ref.actor.state_masking=true \
     reward_model.enable=false \
-    trainer.logger=['console','wandb'] \
+    trainer.logger=['wandb'] \
     +trainer.val_only=false \
-    trainer.val_before_train=false \
+    +trainer.val_before_train=true \
     trainer.default_hdfs_dir=null \
     trainer.n_gpus_per_node="${N_GPUS_PER_NODE}" \
     trainer.nnodes=1 \
