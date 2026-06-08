@@ -13,7 +13,7 @@ set -euo pipefail
 #
 # Prerequisites:
 #   - Cwd resolves to repo root (script cd's there).
-#   - Parquet train/test under DATA_DIR (default /data/nq_hotpotqa_train).
+#   - Parquet train/test under DATA_DIR (default ./data/nq_hotpotqa_train).
 #   - Retrieval HTTP server on retriever.url (default http://127.0.0.1:8000/retrieve; override RETRIEVER_URL).
 #   - WandB if using default trainer.logger.
 #
@@ -47,7 +47,7 @@ export OMP_NUM_THREADS="${OMP_NUMBER_THREADS:-${OMP_NUM_THREADS:-1}}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
-DATA_DIR="${DATA_DIR:-/data/nq_hotpotqa_train}"
+DATA_DIR="${DATA_DIR:-./data/nq_hotpotqa_train}"
 TRAIN_FILE="${DATA_DIR}/train.parquet"
 VAL_FILE="${DATA_DIR}/test.parquet"
 
@@ -123,7 +123,7 @@ PYTHONUNBUFFERED=1 python3 -m verl.trainer.main_ppo \
     reward_model.enable=false \
     trainer.logger=['wandb'] \
     +trainer.val_only=false \
-    +trainer.val_before_train=true \
+    trainer.val_before_train=true \
     trainer.default_hdfs_dir=null \
     trainer.n_gpus_per_node="${N_GPUS_PER_NODE}" \
     trainer.nnodes=1 \
