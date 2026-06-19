@@ -563,6 +563,65 @@ class RayPPOTrainer(object):
             json.dump({'step': step, 'metrics': metric_dict}, f, indent=2)
         print(f'Saved validation metrics to {metrics_path}')
 
+    def _get_train_replay_path(self):
+        replay_path = self.config.trainer.get('train_replay_path')
+        if replay_path is None:
+            replay_path = os.path.join(self.config.trainer.default_local_dir, 'train_replay.jsonl')
+        return replay_path
+
+    def _extract_train_replay_records(self, batch, reward_tensor, replay_metadata, step):
+        meta = batch.meta_info or {}
+        turns_stats = meta.get('turns_stats')
+        valid_action_stats = meta.get('valid_action_stats')
+        valid_search_stats = meta.get('valid_search_stats')
+        per_sample_scores = reward_tensor.sum(-1).tolist()
+        teacher_messages = replay_metadata['teacher_messages']
+        solution_strs = replay_metadata['solution_strs']
+        feedback_list = replay_metadata['feedback_list']
+        feedback_used_flags = replay_metadata['feedback_used']
+        self_distillation_mask = batch.batch['self_distillation_mask'].tolist()
+
+        records = []
+        for i in range(len(batch)):
+            data_item = batch[i]
+            trajectory_str, response_str = self._decode_sample_trajectory(data_item)
+            non_tensor = data_item.non_tensor_batch
+            feedback_value = feedback_list[i] if feedback_used_flags[i] else None
+            record = {
+                'step': step,
+                'index': self._serialize_non_tensor(non_tensor.get('index')),
+                'id': self._serialize_non_tensor(non_tensor.get('id')),
+                'uid': self._serialize_non_tensor(non_tensor.get('uid')),
+                'data_source': self._serialize_non_tensor(non_tensor.get('data_source')),
+                'question': self._serialize_non_tensor(non_tensor.get('question')),
+                'prompt': self._serialize_non_tensor(non_tensor.get('raw_prompt')),
+                'teacher_prompt': self._serialize_non_tensor(teacher_messages[i]),
+                'ground_truth': self._serialize_non_tensor(non_tensor['reward_model']['ground_truth']),
+                'trajectory': trajectory_str,
+                'response': response_str,
+                'score': per_sample_scores[i],
+                'self_distillation_mask': self_distillation_mask[i],
+                'solution_used': solution_strs[i],
+                'feedback_used': feedback_value,
+                'turns': turns_stats[i] if turns_stats is not None else None,
+                'valid_actions': valid_action_stats[i] if valid_action_stats is not None else None,
+                'valid_searches': valid_search_stats[i] if valid_search_stats is not None else None,
+            }
+            records.append(record)
+        return records
+
+    def _append_train_replay(self, records):
+        if not records:
+            return
+        replay_path = self._get_train_replay_path()
+        replay_dir = os.path.dirname(replay_path)
+        if replay_dir:
+            os.makedirs(replay_dir, exist_ok=True)
+        with open(replay_path, 'a', encoding='utf-8') as f:
+            for record in records:
+                f.write(json.dumps(record, ensure_ascii=False) + '\n')
+        print(f'Appended {len(records)} training replay records to {replay_path}')
+
     def _validate(self):
         """
         The training loop of PPO with global metric computation.
@@ -869,12 +928,19 @@ class RayPPOTrainer(object):
             "self_distillation/teacher_seq_len_mean": teacher_input_ids.shape[1],
         }
 
+        replay_metadata = {
+            'teacher_messages': messages,
+            'solution_strs': solution_strs,
+            'feedback_list': feedback_list,
+            'feedback_used': feedback_used,
+        }
+
         return DataProto.from_dict(tensors={
             "teacher_input_ids": teacher_input_ids,
             "teacher_attention_mask": teacher_attention_mask,
             "teacher_position_ids": teacher_position_ids,
             "self_distillation_mask": self_distillation_mask,
-        }), metrics
+        }), metrics, replay_metadata
 
     def _compute_teacher_log_probs(self, batch: DataProto) -> DataProto:
         """Run the reference (EMA teacher) policy on reprompted teacher inputs."""
@@ -1223,9 +1289,13 @@ class RayPPOTrainer(object):
                                 sd_result = self._maybe_build_self_distillation_batch(
                                     batch, reward_tensor, reward_extra_infos_dict=None)
                                 if sd_result is not None:
-                                    sd_batch, sd_metrics = sd_result
+                                    sd_batch, sd_metrics, replay_metadata = sd_result
                                     batch = batch.union(sd_batch)
                                     metrics.update(sd_metrics)
+                                    if self.config.trainer.get('save_train_replay', False):
+                                        records = self._extract_train_replay_records(
+                                            batch, reward_tensor, replay_metadata, self.global_steps)
+                                        self._append_train_replay(records)
                                     sd_cfg = OmegaConf.select(
                                         self.config, 'actor_rollout_ref.actor.self_distillation', default={})
                                     teacher_reg = sd_cfg.get('teacher_regularization', 'actor')

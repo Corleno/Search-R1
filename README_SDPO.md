@@ -56,6 +56,24 @@ python3 -m verl.trainer.main_ppo --config-name sdpo_grpo \
 
 Or use the test launch script: `scripts/experiments/rui_meng/train_sdpo_grpo_v02_test.sh`.
 
+## SDPO training replay (JSONL)
+
+During SDPO training, persist student rollouts and eval-ready teacher reprompts as JSONL (append-per-step). Requires `data.return_raw_chat=true` (enabled by the `sdpo` config preset).
+
+```bash
+trainer.save_train_replay=true \
+trainer.train_replay_path=train_replays/my_sdpo_run.jsonl \
+bash train_sdpo.sh
+```
+
+Each line is one training sample with student `prompt` (raw chat), `teacher_prompt` (reprompt chat usable for eval without re-deriving), `trajectory`, `response`, `score`, `self_distillation_mask`, `solution_used`, and search-turn stats. Default path: `{trainer.default_local_dir}/train_replay.jsonl`.
+
+Inspect one record:
+
+```bash
+head -n 1 train_replays/my_sdpo_run.jsonl | python -m json.tool
+```
+
 ## Key configuration
 
 | Key | Description |
