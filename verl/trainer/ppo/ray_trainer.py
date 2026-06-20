@@ -425,44 +425,84 @@ class RayPPOTrainer(object):
                           config=OmegaConf.to_container(self.config, resolve=True))
 
     def _create_dataloader(self):
-        from torch.utils.data import DataLoader
+        from torch.utils.data import DataLoader, Subset
         # TODO: we have to make sure the batch size is divisible by the dp size
         from verl.utils.dataset.rl_dataset import RLHFDataset, collate_fn
-        self.train_dataset = RLHFDataset(parquet_files=self.config.data.train_files,
-                                         tokenizer=self.tokenizer,
-                                         prompt_key=self.config.data.prompt_key,
-                                         max_prompt_length=self.config.data.max_prompt_length,
-                                         filter_prompts=True,
-                                         return_raw_chat=self.config.data.get('return_raw_chat', False),
-                                         truncation='error')
-        if self.config.data.train_data_num is not None:
-            if self.config.data.train_data_num > len(self.train_dataset.dataframe):
-                print(f"[WARNING] training dataset size is smaller than desired size. Using the dataset as the original size {len(self.train_dataset.dataframe)}")
-            else:
-                self.train_dataset.dataframe = self.train_dataset.dataframe.sample(self.config.data.train_data_num, random_state=42)
-        print(f"filtered training dataset size: {len(self.train_dataset.dataframe)}")
 
-        self.train_dataloader = DataLoader(dataset=self.train_dataset,
-                                           batch_size=self.config.data.train_batch_size,
-                                           shuffle=self.config.data.shuffle_train_dataloader,
-                                           drop_last=True,
-                                           collate_fn=collate_fn)
+        eval_from_replay = self.config.trainer.get('eval_from_replay', False)
+        val_only = self.config.trainer.get('val_only', False)
 
-        self.val_dataset = RLHFDataset(parquet_files=self.config.data.val_files,
-                                       tokenizer=self.tokenizer,
-                                       prompt_key=self.config.data.prompt_key,
-                                       max_prompt_length=self.config.data.max_prompt_length,
-                                       filter_prompts=True,
-                                       return_raw_chat=self.config.data.get('return_raw_chat', False),
-                                       truncation='error')
-        if self.config.data.val_data_num is not None:
-            if self.config.data.val_data_num > len(self.val_dataset.dataframe):
-                print(f"[WARNING] validation dataset size is smaller than desired size. Using the dataset as the original size {len(self.val_dataset.dataframe)}")
-            else:
-                self.val_dataset.dataframe = self.val_dataset.dataframe.sample(self.config.data.val_data_num, random_state=42)
-        print(f"filtered validation dataset size: {len(self.val_dataset.dataframe)}")
+        if eval_from_replay:
+            from verl.utils.dataset.replay_dataset import ReplayJsonlDataset
+            replay_path = self.config.trainer.get('eval_replay_path')
+            if not replay_path:
+                raise ValueError('trainer.eval_replay_path is required when trainer.eval_from_replay=true')
+            prompt_mode = self.config.trainer.get('eval_prompt_mode', 'student')
+            self.val_dataset = ReplayJsonlDataset(
+                jsonl_path=replay_path,
+                tokenizer=self.tokenizer,
+                prompt_mode=prompt_mode,
+                max_prompt_length=self.config.data.max_prompt_length,
+                dedupe_key=self.config.trainer.get('eval_replay_dedupe_key', 'index'),
+                dedupe_strategy=self.config.trainer.get('eval_replay_dedupe_strategy', 'latest_step'),
+                replay_limit=self.config.trainer.get('eval_replay_limit'),
+                require_distillation_mask=self.config.trainer.get(
+                    'eval_replay_require_distillation_mask', False
+                ),
+            )
+            print(
+                f'replay eval dataset: path={replay_path}, prompt_mode={prompt_mode}, '
+                f'size={len(self.val_dataset)}'
+            )
+        else:
+            self.val_dataset = RLHFDataset(parquet_files=self.config.data.val_files,
+                                           tokenizer=self.tokenizer,
+                                           prompt_key=self.config.data.prompt_key,
+                                           max_prompt_length=self.config.data.max_prompt_length,
+                                           filter_prompts=True,
+                                           return_raw_chat=self.config.data.get('return_raw_chat', False),
+                                           truncation='error')
+            if self.config.data.val_data_num is not None:
+                if self.config.data.val_data_num > len(self.val_dataset.dataframe):
+                    print(f"[WARNING] validation dataset size is smaller than desired size. Using the dataset as the original size {len(self.val_dataset.dataframe)}")
+                else:
+                    self.val_dataset.dataframe = self.val_dataset.dataframe.sample(self.config.data.val_data_num, random_state=42)
+            print(f"filtered validation dataset size: {len(self.val_dataset.dataframe)}")
 
-        val_drop_last = not self.config.trainer.get('save_val_replay', False)
+        if eval_from_replay and val_only:
+            self.train_dataset = Subset(self.val_dataset, [0])
+            self.train_dataloader = DataLoader(dataset=self.train_dataset,
+                                               batch_size=1,
+                                               shuffle=False,
+                                               drop_last=False,
+                                               collate_fn=collate_fn)
+        else:
+            self.train_dataset = RLHFDataset(parquet_files=self.config.data.train_files,
+                                             tokenizer=self.tokenizer,
+                                             prompt_key=self.config.data.prompt_key,
+                                             max_prompt_length=self.config.data.max_prompt_length,
+                                             filter_prompts=True,
+                                             return_raw_chat=self.config.data.get('return_raw_chat', False),
+                                             truncation='error')
+            if self.config.data.train_data_num is not None:
+                if self.config.data.train_data_num > len(self.train_dataset.dataframe):
+                    print(f"[WARNING] training dataset size is smaller than desired size. Using the dataset as the original size {len(self.train_dataset.dataframe)}")
+                else:
+                    self.train_dataset.dataframe = self.train_dataset.dataframe.sample(self.config.data.train_data_num, random_state=42)
+            print(f"filtered training dataset size: {len(self.train_dataset.dataframe)}")
+
+            self.train_dataloader = DataLoader(dataset=self.train_dataset,
+                                               batch_size=self.config.data.train_batch_size,
+                                               shuffle=self.config.data.shuffle_train_dataloader,
+                                               drop_last=True,
+                                               collate_fn=collate_fn)
+
+        save_replay_export = (
+            self.config.trainer.get('save_eval_replay', False)
+            if eval_from_replay
+            else self.config.trainer.get('save_val_replay', False)
+        )
+        val_drop_last = not save_replay_export
         self.val_dataloader = DataLoader(dataset=self.val_dataset,
                                          batch_size=self.config.data.val_batch_size,
                                          shuffle=False,
@@ -471,8 +511,9 @@ class RayPPOTrainer(object):
 
         print(f'Size of train dataloader: {len(self.train_dataloader)}')
         print(f'Size of val dataloader: {len(self.val_dataloader)}')
-        
-        assert len(self.train_dataloader) >= 1
+
+        if not (eval_from_replay and val_only):
+            assert len(self.train_dataloader) >= 1
         assert len(self.val_dataloader) >= 1
 
         # inject total_training_steps to actor/critic optim_config. This is hacky.
@@ -532,7 +573,9 @@ class RayPPOTrainer(object):
                 'id': self._serialize_non_tensor(non_tensor.get('id')),
                 'data_source': self._serialize_non_tensor(non_tensor.get('data_source')),
                 'question': self._serialize_non_tensor(non_tensor.get('question')),
-                'prompt': self._serialize_non_tensor(non_tensor.get('prompt')),
+                'prompt': self._serialize_non_tensor(
+                    non_tensor.get('raw_prompt', non_tensor.get('prompt'))
+                ),
                 'ground_truth': self._serialize_non_tensor(non_tensor['reward_model']['ground_truth']),
                 'trajectory': trajectory_str,
                 'response': response_str,
@@ -544,8 +587,9 @@ class RayPPOTrainer(object):
             records.append(record)
         return records
 
-    def _save_val_replay(self, records, metric_dict, step=0):
-        replay_path = self.config.trainer.get('val_replay_path')
+    def _save_val_replay(self, records, metric_dict, step=0, replay_path=None):
+        if replay_path is None:
+            replay_path = self.config.trainer.get('val_replay_path')
         if replay_path is None:
             replay_path = os.path.join(self.config.trainer.default_local_dir, 'val_replay.jsonl')
 
@@ -622,6 +666,17 @@ class RayPPOTrainer(object):
                 f.write(json.dumps(record, ensure_ascii=False) + '\n')
         print(f'Appended {len(records)} training replay records to {replay_path}')
 
+    def _get_eval_replay_output_path(self):
+        output_path = self.config.trainer.get('eval_replay_output_path')
+        if output_path is None:
+            prompt_mode = self.config.trainer.get('eval_prompt_mode', 'student')
+            replay_path = self.config.trainer.get('eval_replay_path', 'eval_replay.jsonl')
+            stem, ext = os.path.splitext(replay_path)
+            if not ext:
+                ext = '.jsonl'
+            output_path = f'{stem}_eval_{prompt_mode}{ext}'
+        return output_path
+
     def _validate(self):
         """
         The training loop of PPO with global metric computation.
@@ -631,7 +686,10 @@ class RayPPOTrainer(object):
         reward_tensor_lst = []
         data_source_lst = []
         replay_records = []
+        eval_from_replay = self.config.trainer.get('eval_from_replay', False)
         save_val_replay = self.config.trainer.get('save_val_replay', False)
+        save_eval_replay = self.config.trainer.get('save_eval_replay', False)
+        save_replay = save_eval_replay if eval_from_replay else save_val_replay
 
         gen_config = GenerationConfig(
             max_turns=self.config.max_turns,
@@ -685,7 +743,7 @@ class RayPPOTrainer(object):
 
                 reward_tensor_lst.append(reward_tensor)
                 data_source_lst.append(test_batch.non_tensor_batch.get('data_source', ['unknown'] * reward_tensor.shape[0]))
-                if save_val_replay:
+                if save_replay:
                     replay_records.extend(self._extract_val_replay_records(test_batch, reward_tensor))
         else:
             for batch_dict in self.val_dataloader:
@@ -721,7 +779,7 @@ class RayPPOTrainer(object):
 
                     reward_tensor_lst.append(reward_tensor)
                     data_source_lst.append(test_batch.non_tensor_batch.get('data_source', ['unknown'] * reward_tensor.shape[0]))
-                    if save_val_replay:
+                    if save_replay:
                         replay_records.extend(self._extract_val_replay_records(test_batch, reward_tensor))
 
         reward_tensor = torch.cat([rw.sum(-1) for rw in reward_tensor_lst], dim=0).cpu()  # (batch_size,)
@@ -739,8 +797,29 @@ class RayPPOTrainer(object):
         for data_source, rewards in data_source_reward.items():
             metric_dict[f'val/test_score/{data_source}'] = np.mean(rewards)
 
-        if save_val_replay and replay_records:
-            self._save_val_replay(replay_records, metric_dict, step=self.global_steps)
+        if eval_from_replay:
+            prompt_mode = self.config.trainer.get('eval_prompt_mode', 'student')
+            metric_dict['val/eval_prompt_mode'] = prompt_mode
+            metric_dict['val/replay_path'] = self.config.trainer.get('eval_replay_path')
+            metric_dict['val/eval_replay_require_distillation_mask'] = self.config.trainer.get(
+                'eval_replay_require_distillation_mask', False
+            )
+            dataset_size = len(self.val_dataset)
+            if dataset_size > 0 and hasattr(self.val_dataset, 'truncated_count'):
+                metric_dict['val/teacher_prompt_truncated_frac'] = (
+                    self.val_dataset.truncated_count / dataset_size
+                )
+
+        if save_replay and replay_records:
+            if eval_from_replay:
+                self._save_val_replay(
+                    replay_records,
+                    metric_dict,
+                    step=self.global_steps,
+                    replay_path=self._get_eval_replay_output_path(),
+                )
+            else:
+                self._save_val_replay(replay_records, metric_dict, step=self.global_steps)
 
         return metric_dict
 

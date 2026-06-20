@@ -217,6 +217,15 @@ trainer:
   val_replay_path: null  # default: ${trainer.default_local_dir}/val_replay.jsonl
   save_train_replay: false
   train_replay_path: null  # default: ${trainer.default_local_dir}/train_replay.jsonl
+  eval_from_replay: false
+  eval_replay_path: null
+  eval_prompt_mode: student  # student | teacher
+  eval_replay_dedupe_key: index  # index | id | none
+  eval_replay_dedupe_strategy: latest_step  # latest_step | first
+  eval_replay_limit: null
+  eval_replay_require_distillation_mask: false  # keep only self_distillation_mask > 0 (train_replay)
+  save_eval_replay: false
+  eval_replay_output_path: null
   critic_warmup: 0
   default_hdfs_dir: ~/experiments/gsm8k/ppo/${trainer.experiment_name}
   default_local_dir: checkpoints/${trainer.project_name}/${trainer.experiment_name}

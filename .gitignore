@@ -123,3 +123,9 @@ log/
 
 # checkpoints
 verl_checkpoints/
+
+# results
+res/
+
+# eval results
+eval_replays/
