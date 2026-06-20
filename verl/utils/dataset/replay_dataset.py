@@ -12,8 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import glob
 import json
 import os
+import re
 from typing import List, Optional
 
 from torch.utils.data import Dataset
@@ -34,6 +36,33 @@ def _load_jsonl_records(jsonl_path: str) -> List[dict]:
                 records.append(json.loads(line))
             except json.JSONDecodeError as exc:
                 raise ValueError(f'Invalid JSON on line {line_no} of {jsonl_path}: {exc}') from exc
+    return records
+
+
+def _step_sort_key(path: str) -> int:
+    match = re.search(r'step_(\d+)\.jsonl$', os.path.basename(path))
+    if match is None:
+        raise ValueError(f'Unexpected step replay filename (expected step_NNNN.jsonl): {path}')
+    return int(match.group(1))
+
+
+def _load_replay_records(path: str) -> List[dict]:
+    if os.path.isfile(path):
+        return _load_jsonl_records(path)
+
+    if not os.path.isdir(path):
+        raise FileNotFoundError(f'Replay path not found (file or directory): {path}')
+
+    step_files = sorted(glob.glob(os.path.join(path, 'step_*.jsonl')), key=_step_sort_key)
+    if not step_files:
+        raise FileNotFoundError(f'No step_*.jsonl files found in replay directory: {path}')
+
+    records = []
+    for step_file in step_files:
+        file_records = _load_jsonl_records(step_file)
+        print(f'loaded {len(file_records)} replay records from {step_file}')
+        records.extend(file_records)
+    print(f'loaded {len(records)} replay records total from {path}')
     return records
 
 
@@ -166,8 +195,8 @@ class ReplayJsonlDataset(Dataset):
                 f'dedupe_strategy must be latest_step or first, got {dedupe_strategy!r}'
             )
 
-        if not os.path.isfile(jsonl_path):
-            raise FileNotFoundError(f'Replay JSONL not found: {jsonl_path}')
+        if not os.path.isfile(jsonl_path) and not os.path.isdir(jsonl_path):
+            raise FileNotFoundError(f'Replay path not found (file or directory): {jsonl_path}')
 
         self.jsonl_path = jsonl_path
         self.tokenizer = tokenizer
@@ -177,8 +206,9 @@ class ReplayJsonlDataset(Dataset):
         self.truncated_count = 0
         self.require_distillation_mask = require_distillation_mask
 
-        raw_records = _load_jsonl_records(jsonl_path)
-        print(f'loaded {len(raw_records)} replay records from {jsonl_path}')
+        raw_records = _load_replay_records(jsonl_path)
+        if os.path.isfile(jsonl_path):
+            print(f'loaded {len(raw_records)} replay records from {jsonl_path}')
 
         if require_distillation_mask:
             raw_records = _filter_distillation_active(raw_records, jsonl_path)

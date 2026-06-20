@@ -58,32 +58,34 @@ Or use the test launch script: `scripts/experiments/rui_meng/train_sdpo_grpo_v02
 
 ## SDPO training replay (JSONL)
 
-During SDPO training, persist student rollouts and eval-ready teacher reprompts as JSONL (append-per-step). Requires `data.return_raw_chat=true` (enabled by the `sdpo` config preset).
+During SDPO training, persist student rollouts and eval-ready teacher reprompts as one JSONL file per training step. Requires `data.return_raw_chat=true` (enabled by the `sdpo` config preset).
 
 ```bash
 trainer.save_train_replay=true \
-trainer.train_replay_path=train_replays/my_sdpo_run.jsonl \
+trainer.train_replay_path=res/train_replays/my_sdpo_run \
 bash train_sdpo.sh
 ```
 
-Each line is one training sample with student `prompt` (raw chat), `teacher_prompt` (reprompt chat usable for eval without re-deriving), `trajectory`, `response`, `score`, `self_distillation_mask`, `solution_used`, and search-turn stats. Default path: `{trainer.default_local_dir}/train_replay.jsonl`.
+Files are written as `step_NNNN.jsonl` under the experiment directory (e.g. `res/train_replays/my_sdpo_run/step_0001.jsonl`). Default directory: `{trainer.default_local_dir}/train_replays`.
+
+Each line is one training sample with student `prompt` (raw chat), `teacher_prompt` (reprompt chat usable for eval without re-deriving), `trajectory`, `response`, `score`, `self_distillation_mask`, `solution_used`, and search-turn stats.
 
 Inspect one record:
 
 ```bash
-head -n 1 train_replays/my_sdpo_run.jsonl | python -m json.tool
+head -n 1 res/train_replays/my_sdpo_run/step_0001.jsonl | python -m json.tool
 ```
 
 Example with replay export enabled: `scripts/experiments/rui_meng/train_sdpo_v02_noclip_replay.sh`.
 
 ## Eval from replay JSONL (student / teacher prompts)
 
-Re-run live multi-turn search from a saved replay file, choosing which prompt seeds the rollout:
+Re-run live multi-turn search from a saved replay file or per-step replay directory, choosing which prompt seeds the rollout:
 
 | Mode | Prompt field | Compatible replay |
 |------|--------------|-------------------|
-| **student** | `prompt` | `train_replay.jsonl`, `val_replay.jsonl` |
-| **teacher** | `teacher_prompt` | `train_replay.jsonl` only |
+| **student** | `prompt` | train replay dir (`step_*.jsonl`), merged `train_replay.jsonl`, `val_replay.jsonl` |
+| **teacher** | `teacher_prompt` | train replay dir or merged `train_replay.jsonl` only |
 
 If `prompt` is null in older `val_replay` exports, student mode reconstructs the instruction from the `question` field.
 
@@ -92,21 +94,26 @@ Teacher mode fails fast on `val_replay` (no `teacher_prompt` field). Train repla
 Set `EVAL_REPLAY_REQUIRE_DISTILLATION_MASK=true` (or `trainer.eval_replay_require_distillation_mask=true`) to evaluate only records where `self_distillation_mask > 0` — i.e. samples that received a peer solution or feedback reprompt during SDPO training. This filter applies before dedup and requires `train_replay.jsonl` (not `val_replay`).
 
 ```bash
-# Student eval on SDPO train replay
-REPLAY_PATH=res/train_replays/test_0619.jsonl \
+# Student eval on SDPO train replay (all steps in experiment dir)
+REPLAY_PATH=res/train_replays/my_sdpo_run \
 EVAL_PROMPT_MODE=student \
 BASE_MODEL=Qwen/Qwen2.5-3B \
 bash scripts/experiments/rui_meng/eval_replay.sh
 
 # Teacher eval (reprompt with peer solution context)
 EVAL_PROMPT_MODE=teacher \
-REPLAY_PATH=res/train_replays/test_0619.jsonl \
+REPLAY_PATH=res/train_replays/my_sdpo_run \
 bash scripts/experiments/rui_meng/eval_replay.sh
 
 # Teacher eval on distillation-active samples only
 EVAL_PROMPT_MODE=teacher \
 EVAL_REPLAY_REQUIRE_DISTILLATION_MASK=true \
-REPLAY_PATH=res/train_replays/test_0619.jsonl \
+REPLAY_PATH=res/train_replays/my_sdpo_run \
+bash scripts/experiments/rui_meng/eval_replay.sh
+
+# Single-step or legacy merged JSONL still supported
+REPLAY_PATH=res/train_replays/my_sdpo_run/step_0042.jsonl \
+EVAL_PROMPT_MODE=student \
 bash scripts/experiments/rui_meng/eval_replay.sh
 
 # Val replay (student only)
@@ -169,7 +176,7 @@ You can compare checkpoints using the same search eval scripts (e.g. `eval_grpo_
 | `scripts/experiments/rui_meng/train_sdpo_grpo_v02_test.sh` | SDPO+GRPO test launch script |
 | `scripts/experiments/rui_meng/train_sdpo_v02_noclip_replay.sh` | SDPO v02 + train replay export |
 | `scripts/experiments/rui_meng/eval_replay.sh` | Replay-driven eval with student/teacher prompt modes |
-| `verl/utils/dataset/replay_dataset.py` | JSONL replay loader for eval |
+| `verl/utils/dataset/replay_dataset.py` | JSONL replay loader for eval (single file or step_*.jsonl directory) |
 | `verl/trainer/config/sdpo.yaml` | SDPO Hydra preset |
 | `verl/trainer/config/sdpo_grpo.yaml` | SDPO+GRPO Hydra preset |
 | `verl/trainer/ppo/core_algos.py` | `compute_self_distillation_loss` |

@@ -1,0 +1,1169 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>JSONL replay viewer</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+      :root {
+        --bg: #0b0f1a;
+        --panel: rgba(255, 255, 255, 0.06);
+        --panel2: rgba(255, 255, 255, 0.09);
+        --text: rgba(255, 255, 255, 0.92);
+        --muted: rgba(255, 255, 255, 0.68);
+        --accent: #7c5cff;
+        --accent2: #2be7c7;
+        --danger: #ff5c7a;
+        --ok: #5cff8a;
+        --warn: #ffc85c;
+        --border: rgba(255, 255, 255, 0.12);
+        --shadow: 0 18px 60px rgba(0, 0, 0, 0.45);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        height: 100%;
+      }
+      body {
+        margin: 0;
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+        color: var(--text);
+        background: radial-gradient(1200px 800px at 10% 10%, rgba(124, 92, 255, 0.25), transparent 55%),
+          radial-gradient(1000px 700px at 90% 20%, rgba(43, 231, 199, 0.18), transparent 55%),
+          radial-gradient(900px 600px at 40% 90%, rgba(255, 92, 122, 0.14), transparent 60%), var(--bg);
+      }
+      .wrap {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 28px 18px 60px;
+      }
+      header {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 18px;
+        flex-wrap: wrap;
+      }
+      h1 {
+        margin: 0;
+        font-size: 22px;
+        letter-spacing: 0.2px;
+      }
+      .sub {
+        margin-top: 6px;
+        color: var(--muted);
+        font-size: 13px;
+        max-width: 62ch;
+        line-height: 1.45;
+      }
+      .controls {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        align-items: center;
+      }
+      .control {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: var(--panel);
+        border: 1px solid var(--border);
+        padding: 10px 12px;
+        border-radius: 12px;
+        box-shadow: var(--shadow);
+      }
+      .control label {
+        font-size: 12px;
+        color: var(--muted);
+        white-space: nowrap;
+      }
+      input,
+      select,
+      button {
+        color: var(--text);
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 10px;
+        padding: 8px 10px;
+        outline: none;
+        font-size: 13px;
+      }
+      input[type="text"],
+      input[type="number"] {
+        width: 140px;
+      }
+      input.path-input {
+        width: min(520px, 56vw);
+      }
+      input[type="file"] {
+        max-width: 220px;
+        font-size: 12px;
+      }
+      button {
+        cursor: pointer;
+        background: linear-gradient(135deg, rgba(124, 92, 255, 0.65), rgba(43, 231, 199, 0.35));
+        border-color: rgba(255, 255, 255, 0.18);
+      }
+      button.secondary {
+        background: rgba(255, 255, 255, 0.06);
+      }
+      button:disabled {
+        cursor: not-allowed;
+        opacity: 0.55;
+      }
+      .dropzone {
+        margin-top: 14px;
+        border: 1px dashed rgba(255, 255, 255, 0.22);
+        border-radius: 16px;
+        padding: 22px;
+        text-align: center;
+        color: var(--muted);
+        background: var(--panel);
+      }
+      .dropzone.drag {
+        border-color: var(--accent2);
+        background: rgba(43, 231, 199, 0.08);
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: 1.1fr 1fr;
+        gap: 14px;
+        margin-top: 14px;
+      }
+      @media (max-width: 1100px) {
+        .grid,
+        .detail-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 14px;
+        box-shadow: var(--shadow);
+        overflow: hidden;
+      }
+      .card h2 {
+        font-size: 14px;
+        margin: 0 0 10px;
+        color: rgba(255, 255, 255, 0.88);
+        font-weight: 600;
+      }
+      .kpis {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 10px;
+      }
+      @media (max-width: 720px) {
+        .kpis {
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
+      .kpi {
+        background: var(--panel2);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 14px;
+        padding: 10px 12px;
+      }
+      .kpi .t {
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .kpi .v {
+        margin-top: 6px;
+        font-size: 18px;
+        font-weight: 700;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th,
+      td {
+        padding: 10px 10px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        vertical-align: top;
+        font-size: 13px;
+      }
+      th {
+        color: rgba(255, 255, 255, 0.76);
+        text-align: left;
+        font-weight: 600;
+      }
+      tr.clickable {
+        cursor: pointer;
+      }
+      tr.clickable:hover td {
+        background: rgba(124, 92, 255, 0.12);
+      }
+      tr.selected td {
+        background: rgba(124, 92, 255, 0.2);
+      }
+      .mono {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        font-size: 12px;
+      }
+      .pill {
+        display: inline-block;
+        padding: 2px 8px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(0, 0, 0, 0.18);
+        border-radius: 999px;
+        color: rgba(255, 255, 255, 0.82);
+        font-size: 12px;
+        margin-right: 6px;
+        margin-bottom: 4px;
+      }
+      .pill.ok {
+        border-color: rgba(92, 255, 138, 0.35);
+        color: var(--ok);
+      }
+      .pill.bad {
+        border-color: rgba(255, 92, 122, 0.35);
+        color: var(--danger);
+      }
+      .err {
+        color: var(--danger);
+        font-size: 13px;
+        margin-top: 8px;
+      }
+      .muted {
+        color: var(--muted);
+      }
+      .rowq {
+        max-width: 48ch;
+        white-space: pre-wrap;
+      }
+      canvas {
+        width: 100% !important;
+        height: 240px !important;
+      }
+      .detail-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+        margin-top: 14px;
+      }
+      .trajectory {
+        white-space: pre-wrap;
+        word-break: break-word;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 12px;
+        line-height: 1.5;
+        max-height: 520px;
+        overflow: auto;
+        padding: 12px;
+        border-radius: 12px;
+        background: rgba(0, 0, 0, 0.28);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+      }
+      .trajectory .tag-search {
+        color: #9ad0ff;
+        background: rgba(154, 208, 255, 0.08);
+      }
+      .trajectory .tag-info {
+        color: #ffd28a;
+        background: rgba(255, 210, 138, 0.08);
+      }
+      .trajectory .tag-answer {
+        color: var(--ok);
+        background: rgba(92, 255, 138, 0.1);
+        font-weight: 600;
+      }
+      .trajectory .tag-think {
+        color: #c9b8ff;
+        background: rgba(201, 184, 255, 0.08);
+      }
+      .trajectory .tag-invalid {
+        color: var(--danger);
+        background: rgba(255, 92, 122, 0.1);
+      }
+      .trajectory .tag-role {
+        color: var(--accent2);
+      }
+      .meta-list {
+        display: grid;
+        gap: 8px;
+      }
+      .meta-row {
+        display: flex;
+        gap: 10px;
+        font-size: 13px;
+      }
+      .meta-row .k {
+        min-width: 140px;
+        color: var(--muted);
+      }
+      .meta-row .v {
+        flex: 1;
+        word-break: break-word;
+      }
+      .pager {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        justify-content: flex-end;
+        margin-top: 10px;
+      }
+      .hidden {
+        display: none !important;
+      }
+      .file-list {
+        margin-top: 8px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .browse-panel {
+        margin-top: 14px;
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 12px;
+      }
+      .browse-path {
+        font-size: 12px;
+        margin-bottom: 10px;
+        word-break: break-all;
+      }
+      .browse-list {
+        display: grid;
+        gap: 6px;
+        max-height: 240px;
+        overflow: auto;
+      }
+      .browse-item {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 8px 10px;
+        border-radius: 10px;
+        background: rgba(0, 0, 0, 0.18);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        cursor: pointer;
+        font-size: 13px;
+      }
+      .browse-item:hover {
+        background: rgba(124, 92, 255, 0.14);
+      }
+      .section-label {
+        width: 100%;
+        font-size: 12px;
+        color: var(--muted);
+        margin-top: 4px;
+      }
+      .prompt-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-top: 12px;
+      }
+      @media (max-width: 900px) {
+        .prompt-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+      .prompt-panel h3 {
+        margin: 0 0 6px;
+        font-size: 12px;
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.82);
+      }
+      .prompt-box {
+        max-height: 280px;
+      }
+      .prompt-msg + .prompt-msg {
+        margin-top: 10px;
+        padding-top: 10px;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+      }
+      .prompt-role {
+        border-color: rgba(43, 231, 199, 0.35);
+        color: var(--accent2);
+      }
+      .prompt-same {
+        border-color: rgba(92, 255, 138, 0.35);
+        color: var(--ok);
+      }
+      .prompt-diff {
+        border-color: rgba(255, 200, 92, 0.35);
+        color: var(--warn);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header>
+        <div>
+          <h1>JSONL replay viewer</h1>
+          <div class="sub">
+            Load replay JSONL from the <strong>remote server</strong> by path (file or directory of
+            <span class="mono">step_*.jsonl</span>), browse directories, or upload files to the server.
+          </div>
+        </div>
+        <div class="controls">
+          <div class="control">
+            <label for="serverPath">server path</label>
+            <input id="serverPath" class="mono path-input" type="text" placeholder="res/train_replays/my_run" />
+          </div>
+          <div class="control">
+            <button id="loadServerBtn" type="button">Load</button>
+          </div>
+          <div class="control">
+            <button id="browseBtn" class="secondary" type="button">Browse</button>
+          </div>
+          <div class="control">
+            <button id="clearBtn" class="secondary" type="button">Clear</button>
+          </div>
+        </div>
+      </header>
+
+      <div class="controls" style="justify-content: flex-start; margin-top: 10px">
+        <div class="section-label">Upload to server</div>
+        <div class="control">
+          <label for="uploadInput">files</label>
+          <input id="uploadInput" type="file" accept=".jsonl" multiple />
+        </div>
+        <div class="control">
+          <button id="uploadBtn" type="button">Upload &amp; load</button>
+        </div>
+      </div>
+
+      <div id="browsePanel" class="browse-panel hidden">
+        <div class="browse-path mono" id="browsePath">—</div>
+        <div class="browse-list" id="browseList"></div>
+      </div>
+
+      <details style="margin-top: 14px">
+        <summary class="muted" style="cursor: pointer">Local browser upload (offline fallback)</summary>
+        <div class="controls" style="margin-top: 10px; justify-content: flex-start">
+          <div class="control">
+            <label for="fileInput">file</label>
+            <input id="fileInput" type="file" accept=".jsonl,.json" multiple />
+          </div>
+          <div class="control">
+            <label for="dirInput">folder</label>
+            <input id="dirInput" type="file" webkitdirectory multiple />
+          </div>
+        </div>
+        <div id="dropzone" class="dropzone">
+          Drop <span class="mono">.jsonl</span> files or a replay directory here (local machine only)
+        </div>
+      </details>
+      <div id="fileList" class="file-list"></div>
+      <div id="error" class="err hidden"></div>
+
+      <div id="dashboard" class="hidden">
+        <div class="controls" style="margin-top: 14px; justify-content: flex-start">
+          <div class="control">
+            <label for="filterQ">question</label>
+            <input id="filterQ" type="text" placeholder="search text" />
+          </div>
+          <div class="control">
+            <label for="filterSource">source</label>
+            <select id="filterSource"><option value="">all</option></select>
+          </div>
+          <div class="control">
+            <label for="filterStep">step</label>
+            <select id="filterStep"><option value="">all</option></select>
+          </div>
+          <div class="control">
+            <label for="filterScore">score</label>
+            <select id="filterScore">
+              <option value="">all</option>
+              <option value="1">= 1</option>
+              <option value="0">= 0</option>
+              <option value="gt0">&gt; 0</option>
+            </select>
+          </div>
+          <div class="control">
+            <label for="sortBy">sort</label>
+            <select id="sortBy">
+              <option value="index">index</option>
+              <option value="score_desc">score ↓</option>
+              <option value="score_asc">score ↑</option>
+              <option value="turns_desc">turns ↓</option>
+              <option value="searches_desc">searches ↓</option>
+            </select>
+          </div>
+          <div class="control">
+            <button id="applyFilters" type="button">Apply</button>
+          </div>
+        </div>
+
+        <div class="grid">
+          <div class="card">
+            <h2>Summary</h2>
+            <div class="kpis">
+              <div class="kpi">
+                <div class="t">records</div>
+                <div class="v" id="kpiRecords">—</div>
+              </div>
+              <div class="kpi">
+                <div class="t">accuracy</div>
+                <div class="v" id="kpiAcc">—</div>
+              </div>
+              <div class="kpi">
+                <div class="t">avg turns</div>
+                <div class="v" id="kpiTurns">—</div>
+              </div>
+              <div class="kpi">
+                <div class="t">avg searches</div>
+                <div class="v" id="kpiSearches">—</div>
+              </div>
+            </div>
+            <div class="muted" style="margin-top: 12px" id="sourceInfo">—</div>
+          </div>
+          <div class="card">
+            <h2>Score distribution</h2>
+            <canvas id="scoreChart"></canvas>
+          </div>
+        </div>
+
+        <div class="detail-grid">
+          <div class="card">
+            <h2>Records <span class="muted" id="filteredCount"></span></h2>
+            <div style="overflow: auto; max-height: 520px">
+              <table>
+                <thead>
+                  <tr>
+                    <th style="width: 90px">id</th>
+                    <th>question</th>
+                    <th style="width: 56px">score</th>
+                    <th style="width: 56px">turns</th>
+                    <th style="width: 72px">searches</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody"></tbody>
+              </table>
+            </div>
+            <div class="pager">
+              <button id="prevPage" class="secondary" type="button">Prev</button>
+              <span class="muted mono" id="pageInfo">—</span>
+              <button id="nextPage" class="secondary" type="button">Next</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2>Detail</h2>
+            <div id="detailEmpty" class="muted">Select a row to inspect trajectory.</div>
+            <div id="detailPanel" class="hidden">
+              <div class="meta-list" id="metaList"></div>
+              <div class="prompt-grid">
+                <div class="prompt-panel">
+                  <h3>Prompt <span id="promptCompareBadge" class="pill hidden"></span></h3>
+                  <div id="promptBox" class="trajectory prompt-box"></div>
+                </div>
+                <div class="prompt-panel">
+                  <h3>Teacher prompt</h3>
+                  <div id="teacherPromptBox" class="trajectory prompt-box"></div>
+                </div>
+              </div>
+              <div style="margin-top: 12px">
+                <div class="muted" style="margin-bottom: 6px">trajectory / response</div>
+                <div id="trajectoryBox" class="trajectory"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const $ = (id) => document.getElementById(id);
+      const PAGE_SIZE = 50;
+
+      let allRecords = [];
+      let filteredRecords = [];
+      let selectedIndex = -1;
+      let page = 0;
+      let scoreChart = null;
+      let loadedFiles = [];
+      let serverMode = false;
+
+      async function api(path, params, options = {}) {
+        const qs = new URLSearchParams(params || {}).toString();
+        const url = qs ? `${path}?${qs}` : path;
+        const r = await fetch(url, options);
+        const text = await r.text();
+        let data;
+        try {
+          data = JSON.parse(text);
+        } catch {
+          throw new Error(`Bad JSON from ${url}: ${text.slice(0, 180)}`);
+        }
+        if (!r.ok) throw new Error(data?.error || `${r.status} ${r.statusText}`);
+        return data;
+      }
+
+      function showError(msg) {
+        const el = $("error");
+        if (!msg) {
+          el.classList.add("hidden");
+          el.textContent = "";
+          return;
+        }
+        el.classList.remove("hidden");
+        el.textContent = msg;
+      }
+
+      function escapeHtml(s) {
+        return String(s ?? "")
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;");
+      }
+
+      function stepSortKey(name) {
+        const m = name.match(/step_(\d+)\.jsonl$/i);
+        return m ? Number(m[1]) : Number.MAX_SAFE_INTEGER;
+      }
+
+      function parseJsonl(text, sourceName) {
+        const records = [];
+        const lines = text.split(/\r?\n/);
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i].trim();
+          if (!line) continue;
+          try {
+            const obj = JSON.parse(line);
+            if (!obj._source_file) obj._source_file = sourceName;
+            records.push(obj);
+          } catch (e) {
+            throw new Error(`Invalid JSON on line ${i + 1} of ${sourceName}: ${e.message}`);
+          }
+        }
+        return records;
+      }
+
+      async function readFile(file) {
+        const text = await file.text();
+        return parseJsonl(text, file.name);
+      }
+
+      function setLoadedData(records, files, sourceLabel) {
+        loadedFiles = files;
+        allRecords = records;
+        page = 0;
+        selectedIndex = -1;
+        populateFilterOptions();
+        applyFilters();
+        $("dashboard").classList.remove("hidden");
+        $("fileList").textContent = `Loaded ${allRecords.length} records from ${sourceLabel}: ${files.join(", ")}`;
+        showError("");
+      }
+
+      async function loadFromServer(path) {
+        const payload = await api("/api/load", { path: path.trim() });
+        serverMode = true;
+        setLoadedData(
+          payload.records || [],
+          payload.files || [],
+          `server path ${payload.path}`
+        );
+      }
+
+      async function uploadToServer(fileList) {
+        const files = Array.from(fileList).filter((f) => f.name.endsWith(".jsonl"));
+        if (!files.length) throw new Error("No .jsonl files selected.");
+        const form = new FormData();
+        for (const file of files) form.append("files", file);
+        const payload = await api("/api/upload", null, { method: "POST", body: form });
+        serverMode = true;
+        $("serverPath").value = payload.upload_dir;
+        setLoadedData(
+          payload.records || [],
+          payload.files || [],
+          `uploaded to ${payload.upload_dir}`
+        );
+      }
+
+      async function loadFiles(fileList) {
+        const files = Array.from(fileList).filter((f) => f.name.endsWith(".jsonl") || f.name.endsWith(".json"));
+        if (!files.length) {
+          throw new Error("No .jsonl files found in selection.");
+        }
+        files.sort((a, b) => {
+          const sa = stepSortKey(a.name);
+          const sb = stepSortKey(b.name);
+          if (sa !== sb) return sa - sb;
+          return a.name.localeCompare(b.name);
+        });
+
+        const chunks = [];
+        for (const file of files) {
+          chunks.push(...(await readFile(file)));
+        }
+        serverMode = false;
+        setLoadedData(chunks, files.map((f) => f.name), "local file(s)");
+      }
+
+      async function browseServer(path) {
+        const data = await api("/api/browse", { path: path || $("serverPath").value.trim() });
+        $("browsePanel").classList.remove("hidden");
+        $("browsePath").textContent = data.path;
+        const list = $("browseList");
+        list.innerHTML = "";
+        if (data.parent) {
+          const up = document.createElement("div");
+          up.className = "browse-item";
+          up.innerHTML = `<span>..</span><span class="muted">parent</span>`;
+          up.addEventListener("click", () => browseServer(data.parent));
+          list.appendChild(up);
+        }
+        for (const entry of data.entries || []) {
+          const row = document.createElement("div");
+          row.className = "browse-item";
+          const meta = entry.type === "file" ? `${(entry.size / 1024).toFixed(1)} KB` : "dir";
+          row.innerHTML = `<span class="mono">${escapeHtml(entry.name)}</span><span class="muted">${meta}</span>`;
+          row.addEventListener("click", async () => {
+            $("serverPath").value = entry.path;
+            if (entry.type === "dir") {
+              await browseServer(entry.path);
+            } else {
+              try {
+                await loadFromServer(entry.path);
+              } catch (err) {
+                showError(err?.message || String(err));
+              }
+            }
+          });
+          list.appendChild(row);
+        }
+      }
+
+      function num(v, fallback = null) {
+        const n = Number(v);
+        return Number.isFinite(n) ? n : fallback;
+      }
+
+      function groundTruthText(gt) {
+        if (gt == null) return "—";
+        if (typeof gt === "string") return gt;
+        if (Array.isArray(gt)) return gt.join(" | ");
+        if (gt.target) return Array.isArray(gt.target) ? gt.target.join(" | ") : String(gt.target);
+        return JSON.stringify(gt);
+      }
+
+      function extractAnswer(text) {
+        if (!text) return null;
+        const matches = [...text.matchAll(/<answer>\s*([\s\S]*?)\s*<\/answer>/gi)];
+        if (!matches.length) return null;
+        return matches[matches.length - 1][1].trim();
+      }
+
+      function highlightTrajectory(text) {
+        if (!text) return '<span class="muted">(empty)</span>';
+        let html = escapeHtml(text);
+        const rules = [
+          { re: /&lt;search&gt;[\s\S]*?&lt;\/search&gt;/gi, cls: "tag-search" },
+          { re: /&lt;information&gt;[\s\S]*?&lt;\/information&gt;/gi, cls: "tag-info" },
+          { re: /&lt;answer&gt;[\s\S]*?&lt;\/answer&gt;/gi, cls: "tag-answer" },
+          { re: /&lt;think&gt;[\s\S]*?&lt;\/think&gt;/gi, cls: "tag-think" },
+          { re: /&lt;redacted_thinking&gt;[\s\S]*?&lt;\/redacted_thinking&gt;/gi, cls: "tag-think" },
+          { re: /&lt;\|im_start\|&gt;[\s\S]*?&lt;\|im_end\|&gt;/gi, cls: "tag-role" },
+          { re: /My previous action is invalid\.[\s\S]*?Let me try again\./gi, cls: "tag-invalid" },
+        ];
+        for (const { re, cls } of rules) {
+          html = html.replace(re, (m) => `<span class="${cls}">${m}</span>`);
+        }
+        return html;
+      }
+
+      function renderPromptHtml(prompt) {
+        if (prompt == null) return '<span class="muted">(not present)</span>';
+        if (typeof prompt === "string") return highlightTrajectory(prompt);
+        if (Array.isArray(prompt)) {
+          if (!prompt.length) return '<span class="muted">(empty)</span>';
+          return prompt
+            .map((msg) => {
+              const role = escapeHtml(msg?.role || "unknown");
+              const content = highlightTrajectory(msg?.content ?? "");
+              return `<div class="prompt-msg"><span class="pill prompt-role">${role}</span><div style="margin-top:6px">${content}</div></div>`;
+            })
+            .join("");
+        }
+        return `<pre class="mono">${escapeHtml(JSON.stringify(prompt, null, 2))}</pre>`;
+      }
+
+      function promptsEqual(a, b) {
+        if (a == null && b == null) return true;
+        if (a == null || b == null) return false;
+        return JSON.stringify(a) === JSON.stringify(b);
+      }
+
+      function populateFilterOptions() {
+        const sources = [...new Set(allRecords.map((r) => r.data_source).filter(Boolean))].sort();
+        const steps = [...new Set(allRecords.map((r) => r.step).filter((s) => s != null))].sort((a, b) => a - b);
+
+        const sourceSel = $("filterSource");
+        sourceSel.innerHTML = '<option value="">all</option>';
+        for (const s of sources) {
+          const opt = document.createElement("option");
+          opt.value = s;
+          opt.textContent = s;
+          sourceSel.appendChild(opt);
+        }
+
+        const stepSel = $("filterStep");
+        stepSel.innerHTML = '<option value="">all</option>';
+        for (const s of steps) {
+          const opt = document.createElement("option");
+          opt.value = String(s);
+          opt.textContent = `step ${s}`;
+          stepSel.appendChild(opt);
+        }
+      }
+
+      function applyFilters() {
+        const q = $("filterQ").value.trim().toLowerCase();
+        const source = $("filterSource").value;
+        const step = $("filterStep").value;
+        const scoreFilter = $("filterScore").value;
+        const sortBy = $("sortBy").value;
+
+        filteredRecords = allRecords.filter((r) => {
+          if (q) {
+            const hay = `${r.question ?? ""} ${r.id ?? ""} ${JSON.stringify(r.ground_truth ?? "")}`.toLowerCase();
+            if (!hay.includes(q)) return false;
+          }
+          if (source && r.data_source !== source) return false;
+          if (step && String(r.step) !== step) return false;
+          const score = num(r.score, 0);
+          if (scoreFilter === "1" && score !== 1) return false;
+          if (scoreFilter === "0" && score !== 0) return false;
+          if (scoreFilter === "gt0" && score <= 0) return false;
+          return true;
+        });
+
+        filteredRecords.sort((a, b) => {
+          if (sortBy === "score_desc") return num(b.score, 0) - num(a.score, 0);
+          if (sortBy === "score_asc") return num(a.score, 0) - num(b.score, 0);
+          if (sortBy === "turns_desc") return num(b.turns, 0) - num(a.turns, 0);
+          if (sortBy === "searches_desc") return num(b.valid_searches, 0) - num(a.valid_searches, 0);
+          return num(a.index, 0) - num(b.index, 0);
+        });
+
+        if (page * PAGE_SIZE >= filteredRecords.length) page = 0;
+        renderSummary();
+        renderTable();
+        renderDetail();
+      }
+
+      function renderSummary() {
+        const n = filteredRecords.length;
+        $("kpiRecords").textContent = String(n);
+        const scores = filteredRecords.map((r) => num(r.score, 0));
+        const acc = n ? scores.filter((s) => s > 0).length / n : 0;
+        $("kpiAcc").textContent = n ? `${(acc * 100).toFixed(1)}%` : "—";
+        const turns = filteredRecords.map((r) => num(r.turns, 0));
+        $("kpiTurns").textContent = n ? (turns.reduce((a, b) => a + b, 0) / n).toFixed(1) : "—";
+        const searches = filteredRecords.map((r) => num(r.valid_searches, 0));
+        $("kpiSearches").textContent = n ? (searches.reduce((a, b) => a + b, 0) / n).toFixed(1) : "—";
+
+        const bySource = {};
+        for (const r of filteredRecords) {
+          const key = r.data_source || "unknown";
+          bySource[key] = (bySource[key] || 0) + 1;
+        }
+        $("sourceInfo").textContent = Object.entries(bySource)
+          .map(([k, v]) => `${k}: ${v}`)
+          .join(" · ");
+
+        const bins = { "0": 0, "(0,1)": 0, "1": 0 };
+        for (const s of scores) {
+          if (s === 0) bins["0"]++;
+          else if (s === 1) bins["1"]++;
+          else bins["(0,1)"]++;
+        }
+        const labels = Object.keys(bins);
+        const values = labels.map((k) => bins[k]);
+        if (scoreChart) scoreChart.destroy();
+        scoreChart = new Chart($("scoreChart"), {
+          type: "bar",
+          data: {
+            labels,
+            datasets: [
+              {
+                label: "count",
+                data: values,
+                backgroundColor: "rgba(124, 92, 255, 0.65)",
+                borderColor: "rgba(124, 92, 255, 0.95)",
+                borderWidth: 1,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: {
+              x: { ticks: { color: "rgba(255,255,255,0.78)" }, grid: { color: "rgba(255,255,255,0.08)" } },
+              y: { ticks: { color: "rgba(255,255,255,0.78)" }, grid: { color: "rgba(255,255,255,0.08)" } },
+            },
+          },
+        });
+      }
+
+      function renderTable() {
+        const total = filteredRecords.length;
+        const start = page * PAGE_SIZE;
+        const end = Math.min(start + PAGE_SIZE, total);
+        const rows = filteredRecords.slice(start, end);
+        $("filteredCount").textContent = total ? `(${total})` : "";
+        $("pageInfo").textContent = total ? `${start + 1}-${end} of ${total}` : "0";
+        $("prevPage").disabled = page <= 0;
+        $("nextPage").disabled = end >= total;
+
+        const tb = $("tbody");
+        tb.innerHTML = "";
+        rows.forEach((r, i) => {
+          const globalIdx = start + i;
+          const tr = document.createElement("tr");
+          tr.className = "clickable" + (globalIdx === selectedIndex ? " selected" : "");
+          const score = num(r.score, 0);
+          const scorePill = score > 0 ? "ok" : "bad";
+          tr.innerHTML = `
+            <td class="mono">${escapeHtml(r.id ?? r.index ?? "")}</td>
+            <td class="rowq">${escapeHtml(r.question ?? "")}</td>
+            <td><span class="pill ${scorePill}">${score}</span></td>
+            <td class="mono">${r.turns ?? "—"}</td>
+            <td class="mono">${r.valid_searches ?? "—"}</td>
+          `;
+          tr.addEventListener("click", () => {
+            selectedIndex = globalIdx;
+            renderTable();
+            renderDetail();
+          });
+          tb.appendChild(tr);
+        });
+      }
+
+      function renderDetail() {
+        const panel = $("detailPanel");
+        const empty = $("detailEmpty");
+        if (selectedIndex < 0 || selectedIndex >= filteredRecords.length) {
+          panel.classList.add("hidden");
+          empty.classList.remove("hidden");
+          return;
+        }
+        empty.classList.add("hidden");
+        panel.classList.remove("hidden");
+
+        const r = filteredRecords[selectedIndex];
+        const text = r.trajectory || r.response || "";
+        const predicted = extractAnswer(text);
+
+        const meta = [
+          ["id", r.id],
+          ["index", r.index],
+          ["step", r.step],
+          ["data_source", r.data_source],
+          ["score", r.score],
+          ["turns", r.turns],
+          ["valid_actions", r.valid_actions],
+          ["valid_searches", r.valid_searches],
+          ["self_distillation_mask", r.self_distillation_mask],
+          ["ground_truth", groundTruthText(r.ground_truth)],
+          ["predicted_answer", predicted ?? "—"],
+          ["source_file", r._source_file],
+        ];
+
+        $("metaList").innerHTML = meta
+          .map(
+            ([k, v]) => `
+            <div class="meta-row">
+              <div class="k">${escapeHtml(k)}</div>
+              <div class="v mono">${escapeHtml(v ?? "—")}</div>
+            </div>`
+          )
+          .join("");
+
+        $("promptBox").innerHTML = renderPromptHtml(r.prompt);
+        $("teacherPromptBox").innerHTML = renderPromptHtml(r.teacher_prompt);
+
+        const compareBadge = $("promptCompareBadge");
+        if (r.prompt != null || r.teacher_prompt != null) {
+          const same = promptsEqual(r.prompt, r.teacher_prompt);
+          compareBadge.textContent = same ? "same as teacher" : "differs from teacher";
+          compareBadge.className = `pill ${same ? "prompt-same" : "prompt-diff"}`;
+        } else {
+          compareBadge.className = "pill hidden";
+          compareBadge.textContent = "";
+        }
+
+        $("trajectoryBox").innerHTML = highlightTrajectory(text);
+      }
+
+      function clearAll() {
+        allRecords = [];
+        filteredRecords = [];
+        loadedFiles = [];
+        selectedIndex = -1;
+        page = 0;
+        serverMode = false;
+        $("fileInput").value = "";
+        $("dirInput").value = "";
+        $("uploadInput").value = "";
+        $("browsePanel").classList.add("hidden");
+        $("dashboard").classList.add("hidden");
+        $("fileList").textContent = "";
+        if (scoreChart) {
+          scoreChart.destroy();
+          scoreChart = null;
+        }
+        showError("");
+      }
+
+      async function initServerDefaults() {
+        try {
+          await api("/api/ping");
+          const defaults = await api("/api/defaults");
+          const params = new URLSearchParams(window.location.search);
+          const path = params.get("path") || defaults.default_replay_path;
+          $("serverPath").value = path;
+          if (params.get("autoload") === "1" || params.get("path")) {
+            await loadFromServer(path);
+          }
+        } catch {
+          // Static file mode without Flask backend.
+        }
+      }
+
+      $("loadServerBtn").addEventListener("click", async () => {
+        const path = $("serverPath").value.trim();
+        if (!path) {
+          showError("Enter a server path.");
+          return;
+        }
+        $("loadServerBtn").disabled = true;
+        try {
+          await loadFromServer(path);
+        } catch (err) {
+          showError(err?.message || String(err));
+        } finally {
+          $("loadServerBtn").disabled = false;
+        }
+      });
+
+      $("browseBtn").addEventListener("click", async () => {
+        $("browseBtn").disabled = true;
+        try {
+          await browseServer($("serverPath").value.trim());
+        } catch (err) {
+          showError(err?.message || String(err));
+        } finally {
+          $("browseBtn").disabled = false;
+        }
+      });
+
+      $("uploadBtn").addEventListener("click", async () => {
+        if (!$("uploadInput").files?.length) {
+          showError("Choose .jsonl files to upload.");
+          return;
+        }
+        $("uploadBtn").disabled = true;
+        try {
+          await uploadToServer($("uploadInput").files);
+        } catch (err) {
+          showError(err?.message || String(err));
+        } finally {
+          $("uploadBtn").disabled = false;
+        }
+      });
+
+      $("serverPath").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") $("loadServerBtn").click();
+      });
+
+      $("fileInput").addEventListener("change", async (e) => {
+        if (!e.target.files?.length) return;
+        try {
+          await loadFiles(e.target.files);
+        } catch (err) {
+          showError(err?.message || String(err));
+        }
+      });
+
+      $("dirInput").addEventListener("change", async (e) => {
+        if (!e.target.files?.length) return;
+        try {
+          await loadFiles(e.target.files);
+        } catch (err) {
+          showError(err?.message || String(err));
+        }
+      });
+
+      $("applyFilters").addEventListener("click", applyFilters);
+      $("filterQ").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") applyFilters();
+      });
+      $("prevPage").addEventListener("click", () => {
+        if (page > 0) {
+          page--;
+          renderTable();
+        }
+      });
+      $("nextPage").addEventListener("click", () => {
+        if ((page + 1) * PAGE_SIZE < filteredRecords.length) {
+          page++;
+          renderTable();
+        }
+      });
+      $("clearBtn").addEventListener("click", clearAll);
+
+      const dropzone = $("dropzone");
+      dropzone.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        dropzone.classList.add("drag");
+      });
+      dropzone.addEventListener("dragleave", () => dropzone.classList.remove("drag"));
+      dropzone.addEventListener("drop", async (e) => {
+        e.preventDefault();
+        dropzone.classList.remove("drag");
+        const items = e.dataTransfer?.items;
+        if (!items) return;
+        const files = [];
+        const walkers = [];
+        for (const item of items) {
+          const entry = item.webkitGetAsEntry?.();
+          if (!entry) continue;
+          walkers.push(
+            (async () => {
+              if (entry.isFile) {
+                files.push(item.getAsFile());
+              } else if (entry.isDirectory) {
+                await walkDir(entry, files);
+              }
+            })()
+          );
+        }
+        try {
+          await Promise.all(walkers);
+          if (!files.length) throw new Error("No files dropped.");
+          await loadFiles(files);
+        } catch (err) {
+          showError(err?.message || String(err));
+        }
+      });
+
+      async function walkDir(dirEntry, out) {
+        const reader = dirEntry.createReader();
+        const entries = await new Promise((resolve) => reader.readEntries(resolve));
+        for (const entry of entries) {
+          if (entry.isFile && entry.name.endsWith(".jsonl")) {
+            out.push(await new Promise((resolve) => entry.file(resolve)));
+          } else if (entry.isDirectory) {
+            await walkDir(entry, out);
+          }
+        }
+      }
+
+      window.addEventListener("load", initServerDefaults);
+    </script>
+  </body>
+</html>

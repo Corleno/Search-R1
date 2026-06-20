@@ -9,8 +9,8 @@ set -euo pipefail
 #     ./scripts/experiments/rui_meng/train_sdpo_v02_noclip_replay.sh
 #   Or from anywhere:
 #     bash /path/to/Search-R1/scripts/experiments/rui_meng/train_sdpo_v02_noclip_replay.sh
-#   Custom replay path:
-#     TRAIN_REPLAY_PATH=res/train_replays/test_0619.jsonl \
+#   Custom replay directory:
+#     TRAIN_REPLAY_DIR=res/train_replays/my_run \
 #     ./scripts/experiments/rui_meng/train_sdpo_v02_noclip_replay.sh
 #
 # Prerequisites:
@@ -25,8 +25,7 @@ set -euo pipefail
 #   DATA_DIR, WAND_PROJECT, BASE_MODEL, EXPERIMENT_NAME
 #   TEACHER_REG — self-distillation teacher: actor | ema | ref (default actor)
 #   RETRIEVER_URL — full retrieve endpoint (default http://127.0.0.1:8000/retrieve)
-#   TRAIN_REPLAY_DIR — default: scripts/experiments/rui_meng/train_replays/${EXPERIMENT_NAME}
-#   TRAIN_REPLAY_PATH — default: ${TRAIN_REPLAY_DIR}/train_replay_<timestamp>.jsonl
+#   TRAIN_REPLAY_DIR — default: res/train_replays/${EXPERIMENT_NAME} (writes step_NNNN.jsonl per step)
 #   TMPDIR, PYTORCH_CUDA_ALLOC_CONF, VLLM_ATTENTION_BACKEND
 
 # check if the wandb api key is set
@@ -68,15 +67,14 @@ BASE_MODEL="${BASE_MODEL:-Qwen/Qwen2.5-3B}"
 EXPERIMENT_NAME="${EXPERIMENT_NAME:-nq_sdpo-qwen2.5-3b-em-noclip-replay}"
 TEACHER_REG="${TEACHER_REG:-actor}"
 RETRIEVER_URL="${RETRIEVER_URL:-http://127.0.0.1:8000/retrieve}"
-TRAIN_REPLAY_DIR="${TRAIN_REPLAY_DIR:-${SCRIPT_DIR}/train_replays/${EXPERIMENT_NAME}}"
-TRAIN_REPLAY_PATH="${TRAIN_REPLAY_PATH:-${TRAIN_REPLAY_DIR}/train_replay_$(date +%Y%m%d_%H%M%S).jsonl}"
+TRAIN_REPLAY_DIR="${TRAIN_REPLAY_DIR:-res/train_replays/${EXPERIMENT_NAME}}"
 
 echo "train_sdpo_v02_noclip_replay:"
 echo "  TRAIN_FILE=${TRAIN_FILE}"
 echo "  VAL_FILE=${VAL_FILE}"
 echo "  BASE_MODEL=${BASE_MODEL}"
 echo "  EXPERIMENT_NAME=${EXPERIMENT_NAME}"
-echo "  TRAIN_REPLAY_PATH=${TRAIN_REPLAY_PATH}"
+echo "  TRAIN_REPLAY_DIR=${TRAIN_REPLAY_DIR}"
 echo "  is_clip=null (no distillation IS clipping)"
 
 export VLLM_ATTENTION_BACKEND="${VLLM_ATTENTION_BACKEND:-XFORMERS}"
@@ -137,10 +135,10 @@ PYTHONUNBUFFERED=1 python3 -m verl.trainer.main_ppo \
     trainer.default_hdfs_dir=null \
     trainer.n_gpus_per_node="${N_GPUS_PER_NODE}" \
     trainer.nnodes=1 \
-    trainer.save_freq=100 \
+    trainer.save_freq=10 \
     trainer.test_freq=100 \
     trainer.save_train_replay=true \
-    trainer.train_replay_path="${TRAIN_REPLAY_PATH}" \
+    trainer.train_replay_path="${TRAIN_REPLAY_DIR}" \
     trainer.project_name="${WAND_PROJECT}" \
     trainer.experiment_name="${EXPERIMENT_NAME}" \
     trainer.total_epochs=15 \

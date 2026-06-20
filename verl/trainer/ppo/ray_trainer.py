@@ -607,11 +607,21 @@ class RayPPOTrainer(object):
             json.dump({'step': step, 'metrics': metric_dict}, f, indent=2)
         print(f'Saved validation metrics to {metrics_path}')
 
-    def _get_train_replay_path(self):
+    def _get_train_replay_dir(self):
         replay_path = self.config.trainer.get('train_replay_path')
         if replay_path is None:
-            replay_path = os.path.join(self.config.trainer.default_local_dir, 'train_replay.jsonl')
+            return os.path.join(self.config.trainer.default_local_dir, 'train_replays')
+        if replay_path.endswith('.jsonl'):
+            print(
+                f'train_replay_path points to a .jsonl file ({replay_path}); '
+                f'using parent directory for per-step replay export'
+            )
+            return os.path.dirname(replay_path) or '.'
         return replay_path
+
+    def _get_train_replay_step_path(self, step):
+        replay_dir = self._get_train_replay_dir()
+        return os.path.join(replay_dir, f'step_{step:04d}.jsonl')
 
     def _extract_train_replay_records(self, batch, reward_tensor, replay_metadata, step):
         meta = batch.meta_info or {}
@@ -654,17 +664,17 @@ class RayPPOTrainer(object):
             records.append(record)
         return records
 
-    def _append_train_replay(self, records):
+    def _save_train_replay_step(self, records, step):
         if not records:
             return
-        replay_path = self._get_train_replay_path()
+        replay_path = self._get_train_replay_step_path(step)
         replay_dir = os.path.dirname(replay_path)
         if replay_dir:
             os.makedirs(replay_dir, exist_ok=True)
-        with open(replay_path, 'a', encoding='utf-8') as f:
+        with open(replay_path, 'w', encoding='utf-8') as f:
             for record in records:
                 f.write(json.dumps(record, ensure_ascii=False) + '\n')
-        print(f'Appended {len(records)} training replay records to {replay_path}')
+        print(f'Saved {len(records)} training replay records to {replay_path}')
 
     def _get_eval_replay_output_path(self):
         output_path = self.config.trainer.get('eval_replay_output_path')
@@ -1374,7 +1384,7 @@ class RayPPOTrainer(object):
                                     if self.config.trainer.get('save_train_replay', False):
                                         records = self._extract_train_replay_records(
                                             batch, reward_tensor, replay_metadata, self.global_steps)
-                                        self._append_train_replay(records)
+                                        self._save_train_replay_step(records, self.global_steps)
                                     sd_cfg = OmegaConf.select(
                                         self.config, 'actor_rollout_ref.actor.self_distillation', default={})
                                     teacher_reg = sd_cfg.get('teacher_regularization', 'actor')

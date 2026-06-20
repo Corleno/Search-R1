@@ -8,12 +8,15 @@ set -euo pipefail
 # Teacher mode requires train_replay (records must include teacher_prompt).
 #
 # Usage:
-#   REPLAY_PATH=res/train_replays/test_0619.jsonl \
+#   REPLAY_PATH=res/train_replays/my_sdpo_run \
 #   EVAL_PROMPT_MODE=student \
 #   BASE_MODEL=Qwen/Qwen2.5-3B \
 #   bash scripts/experiments/rui_meng/eval_replay.sh
 #
-#   EVAL_PROMPT_MODE=teacher REPLAY_PATH=res/train_replays/test_0619.jsonl bash ...
+#   REPLAY_PATH=res/train_replays/my_sdpo_run/step_0001.jsonl \
+#   EVAL_PROMPT_MODE=student bash ...
+#
+#   EVAL_PROMPT_MODE=teacher REPLAY_PATH=res/train_replays/my_sdpo_run bash ...
 #
 #   REPLAY_PATH=val_replays/_grpo_v02_test_64.jsonl EVAL_PROMPT_MODE=student bash ...
 #
@@ -30,11 +33,11 @@ PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 
 REPLAY_PATH="${REPLAY_PATH:-}"
 if [[ -z "${REPLAY_PATH}" ]]; then
-  echo "REPLAY_PATH is required (path to train_replay.jsonl or val_replay.jsonl)"
+  echo "REPLAY_PATH is required (train_replay dir with step_*.jsonl, train_replay.jsonl, or val_replay.jsonl)"
   exit 1
 fi
-if [[ ! -f "${REPLAY_PATH}" ]]; then
-  echo "Replay file not found: ${REPLAY_PATH}"
+if [[ ! -f "${REPLAY_PATH}" && ! -d "${REPLAY_PATH}" ]]; then
+  echo "Replay path not found (file or directory): ${REPLAY_PATH}"
   exit 1
 fi
 
