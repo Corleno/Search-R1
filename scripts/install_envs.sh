@@ -26,7 +26,8 @@
 #   conda activate searchr1
 #   conda activate retriever
 #
-# When installing both envs (default), searchr1 and retriever run in parallel.
+# When installing both envs (default), searchr1 runs first, then retriever
+# (sequential avoids conda pkgs-cache corruption from parallel large downloads).
 #
 set -euo pipefail
 
@@ -48,7 +49,7 @@ Create conda environments from README.md (run from repo root):
   - searchr1   Python 3.9 — torch 2.4 (cu121), vllm 0.6.3, verl, flash-attn wheel, wandb
   - retriever  Python 3.10 — pytorch+cuda 12.1, transformers<4.48, pyserini, faiss-gpu, fastapi
 
-  Installs both envs in parallel by default (separate log files under /tmp).
+  Installs searchr1 first, then retriever (sequential; retriever uses large conda packages).
 
 Options:
   --searchr1-only   Install only the searchr1 environment
@@ -201,10 +202,12 @@ install_retriever() {
   echo "=== Installing retriever environment ==="
   create_env_if_missing retriever 3.10
 
-  echo "Installing PyTorch + CUDA via conda ..."
-  conda install -n retriever -y \
-    pytorch==2.4.0 torchvision==0.19.0 torchaudio==2.4.0 pytorch-cuda=12.1 \
-    -c pytorch -c nvidia
+  echo "Installing PyTorch (cu121) via pip ..."
+  # Pip avoids multi-GB conda pytorch downloads and ClobberError from torchvision deps.
+  # README conda torch is for faiss-gpu; pip torch 2.4+cu121 works with faiss-gpu 1.8.
+  conda run -n retriever pip install \
+    torch==2.4.0 torchvision==0.19.0 torchaudio==2.4.0 \
+    --index-url https://download.pytorch.org/whl/cu121
 
   echo "Installing transformers, datasets, pyserini ..."
   # transformers 5.x needs a newer torch and breaks retrieval_server with torch 2.4 (README)
@@ -220,42 +223,6 @@ install_retriever() {
 }
 
 run_installs() {
-  if [[ "${INSTALL_SEARCHR1}" == 1 && "${INSTALL_RETRIEVER}" == 1 ]]; then
-    local log_dir searchr1_pid retriever_pid failed=0
-    log_dir="$(mktemp -d /tmp/search-r1-env-install.XXXXXX)"
-    echo "Installing searchr1 and retriever in parallel ..."
-    echo "  searchr1 log: ${log_dir}/searchr1.log"
-    echo "  retriever log: ${log_dir}/retriever.log"
-
-    install_searchr1 >"${log_dir}/searchr1.log" 2>&1 &
-    searchr1_pid=$!
-    install_retriever >"${log_dir}/retriever.log" 2>&1 &
-    retriever_pid=$!
-
-    if ! wait "${searchr1_pid}"; then
-      echo "searchr1 install failed (see ${log_dir}/searchr1.log)" >&2
-      failed=1
-    fi
-    if ! wait "${retriever_pid}"; then
-      echo "retriever install failed (see ${log_dir}/retriever.log)" >&2
-      failed=1
-    fi
-
-    if [[ "${failed}" -ne 0 ]]; then
-      echo "" >&2
-      echo "=== searchr1 log (last 80 lines) ===" >&2
-      tail -n 80 "${log_dir}/searchr1.log" >&2 || true
-      echo "" >&2
-      echo "=== retriever log (last 80 lines) ===" >&2
-      tail -n 80 "${log_dir}/retriever.log" >&2 || true
-      echo "" >&2
-      echo "Full logs kept at: ${log_dir}" >&2
-      exit 1
-    fi
-    rm -rf "${log_dir}"
-    return 0
-  fi
-
   if [[ "${INSTALL_SEARCHR1}" == 1 ]]; then
     install_searchr1
   fi
