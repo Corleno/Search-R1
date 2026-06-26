@@ -603,7 +603,7 @@ class DataParallelPPOActor(BasePPOActor):
                 clip_ratio = self.config.clip_ratio
                 entropy_coeff = self.config.entropy_coeff
                 sdpo_clip_ratio = (
-                    clip_ratio if self_distillation_enabled and self_distillation_cfg.get('ppo_clip', True)
+                    clip_ratio if self_distillation_enabled and self_distillation_cfg.get('ppo_clip', False)
                     else None
                 )
 

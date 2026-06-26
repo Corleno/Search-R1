@@ -145,7 +145,7 @@ Outputs: EM metrics (`val/test_score/{data_source}`), plus `val/eval_prompt_mode
 | `actor_rollout_ref.actor.policy_loss.sdpo_coef` | Weight for SDPO term in hybrid mode (default `1.0`) |
 | `actor_rollout_ref.actor.policy_loss.grpo_coef` | Weight for GRPO term in hybrid mode (default `1.0`) |
 | `actor_rollout_ref.actor.self_distillation.*` | Reprompt templates, `success_reward_threshold`, `ppo_clip`, etc. |
-| `actor_rollout_ref.actor.self_distillation.ppo_clip` | `true` (default): PPO-style two-sided clip on distillation loss using `actor.clip_ratio`; `false` to disable |
+| `actor_rollout_ref.actor.self_distillation.ppo_clip` | `false` (default): unclipped distillation loss; set `true` for PPO-style two-sided clip using `actor.clip_ratio` |
 | `actor_rollout_ref.actor.clip_ratio` | ε for PPO clip on GRPO loss and, when `ppo_clip=true`, on SDPO distillation loss (default `0.2`) |
 | `actor_rollout_ref.actor.self_distillation.filter_reprompt_before_update` | `true` for pure SDPO; `false` for SDPO+GRPO (full-batch updates) |
 | `data.return_raw_chat` | **Required** (`true`) for reprompting |
@@ -169,7 +169,7 @@ is wrapped with a PPO-style off-policy clip against the rollout policy \(\pi_{\t
 
 This replaces the legacy one-sided truncated-IS weight (`is_clip`, removed). Log `actor/sdpo_clipfrac` tracks how often the clipped branch is active.
 
-**Migration:** `self_distillation.is_clip=null` → `self_distillation.ppo_clip=false`. Default clipped runs now use two-sided `clip_ratio=0.2` instead of `is_clip=2.0` (not equivalent).
+**Migration:** `self_distillation.is_clip=null` → `self_distillation.ppo_clip=false` (now the default). Opt into clipping with `ppo_clip=true` and two-sided `clip_ratio=0.2` instead of legacy `is_clip=2.0` (not equivalent).
 
 ## Search compatibility
 

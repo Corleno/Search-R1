@@ -11,6 +11,26 @@ def _base_config(ppo_clip: bool = True):
     return OmegaConf.create({"ppo_clip": ppo_clip, "full_logit_distillation": False, "alpha": 1.0})
 
 
+def test_default_is_no_clip_when_ppo_clip_omitted():
+    student = torch.tensor([[-1.0, -0.5]], requires_grad=True)
+    teacher = torch.tensor([[-1.5, -0.8]])
+    mask = torch.ones_like(student)
+    config = OmegaConf.create({"full_logit_distillation": False, "alpha": 1.0})
+
+    loss, metrics = compute_self_distillation_loss(
+        student_log_probs=student,
+        teacher_log_probs=teacher,
+        response_mask=mask,
+        self_distillation_config=config,
+        old_log_probs=None,
+        clip_ratio=None,
+    )
+
+    expected = ((student - teacher).detach() * student).mean()
+    assert torch.allclose(loss, expected)
+    assert "actor/sdpo_clipfrac" not in metrics
+
+
 def test_no_clip_matches_unclipped_distillation_loss():
     student = torch.tensor([[-1.0, -0.5]], requires_grad=True)
     teacher = torch.tensor([[-1.5, -0.8]])

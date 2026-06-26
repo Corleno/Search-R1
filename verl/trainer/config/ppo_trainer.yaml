@@ -43,7 +43,7 @@ actor_rollout_ref:
       remove_thinking_from_demonstration: true
       include_environment_feedback: false
       environment_feedback_only_without_solution: true
-      ppo_clip: true
+      ppo_clip: false
       debug_print_inputs: false
       reprompt_template: |-
         {prompt}{solution}{feedback}

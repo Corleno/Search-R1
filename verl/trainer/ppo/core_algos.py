@@ -427,7 +427,7 @@ def compute_self_distillation_loss(
         log_ratio = student_log_probs - teacher_log_probs
         per_token_loss = log_ratio.detach() * student_log_probs
 
-    ppo_clip = self_distillation_config.get("ppo_clip", True)
+    ppo_clip = self_distillation_config.get("ppo_clip", False)
     if ppo_clip:
         if clip_ratio is None:
             raise ValueError("clip_ratio is required when self_distillation.ppo_clip is enabled.")
