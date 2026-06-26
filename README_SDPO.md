@@ -144,7 +144,9 @@ Outputs: EM metrics (`val/test_score/{data_source}`), plus `val/eval_prompt_mode
 | `actor_rollout_ref.actor.policy_loss.loss_mode` | `sdpo`, `sdpo_grpo`, or `vanilla` (GRPO) |
 | `actor_rollout_ref.actor.policy_loss.sdpo_coef` | Weight for SDPO term in hybrid mode (default `1.0`) |
 | `actor_rollout_ref.actor.policy_loss.grpo_coef` | Weight for GRPO term in hybrid mode (default `1.0`) |
-| `actor_rollout_ref.actor.self_distillation.*` | Reprompt templates, `success_reward_threshold`, `is_clip`, etc. |
+| `actor_rollout_ref.actor.self_distillation.*` | Reprompt templates, `success_reward_threshold`, `ppo_clip`, etc. |
+| `actor_rollout_ref.actor.self_distillation.ppo_clip` | `true` (default): PPO-style two-sided clip on distillation loss using `actor.clip_ratio`; `false` to disable |
+| `actor_rollout_ref.actor.clip_ratio` | ε for PPO clip on GRPO loss and, when `ppo_clip=true`, on SDPO distillation loss (default `0.2`) |
 | `actor_rollout_ref.actor.self_distillation.filter_reprompt_before_update` | `true` for pure SDPO; `false` for SDPO+GRPO (full-batch updates) |
 | `data.return_raw_chat` | **Required** (`true`) for reprompting |
 | `actor_rollout_ref.rollout.n_agent` | Independent search trajectories per prompt when `do_search=true` (e.g. 4–8) |
@@ -152,6 +154,22 @@ Outputs: EM metrics (`val/test_score/{data_source}`), plus `val/eval_prompt_mode
 | `algorithm.adv_estimator` | Use `grpo` (advantages drive GRPO loss; unused in pure SDPO) |
 | `actor_rollout_ref.actor.self_distillation.teacher_regularization` | `actor` (default): same weights; `ema`/`ref`: use colocated ref worker |
 | `actor_rollout_ref.actor.use_kl_loss` | Recommended `true` for SDPO+GRPO (matches GRPO v02) |
+
+## PPO-clipped SDPO distillation
+
+When `ppo_clip=true`, the per-token distillation term
+\(g_t = (\log\pi_\theta - \log\pi_T)_{\text{sg}} \cdot \log\pi_\theta\)
+is wrapped with a PPO-style off-policy clip against the rollout policy \(\pi_{\text{old}}\):
+
+\[
+\ell_t = \max\!\big(r_t\, g_t,\; \mathrm{clip}(r_t, 1-\varepsilon, 1+\varepsilon)\, g_t\big),
+\quad r_t = \frac{\pi_\theta}{\pi_{\text{old}}},
+\quad \varepsilon = \texttt{clip\_ratio}.
+\]
+
+This replaces the legacy one-sided truncated-IS weight (`is_clip`, removed). Log `actor/sdpo_clipfrac` tracks how often the clipped branch is active.
+
+**Migration:** `self_distillation.is_clip=null` → `self_distillation.ppo_clip=false`. Default clipped runs now use two-sided `clip_ratio=0.2` instead of `is_clip=2.0` (not equivalent).
 
 ## Search compatibility
 

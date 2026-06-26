@@ -4,11 +4,11 @@ set -euo pipefail
 # Analyze reward trend and distribution from training replay JSONL files.
 #
 # Usage (from repo root):
-#   bash scripts/experiments/rui_meng/eval_replay_sdpo_v02_noclip/analyze_reward_trend.sh
+#   bash scripts/experiments/rui_meng/eval_replay_nq_sdpo_qwen25_3b_em_ppoclip_replay/analyze_reward_trend.sh
 #
 # Optional environment overrides:
-#   REPLAY_DIR      — default: res/train_replays/exp_sdpo_searchr1_0620
-#   OUTPUT_DIR      — default: res/train_replay_analysis/exp_sdpo_searchr1_0620
+#   REPLAY_DIR      — default: res/train_replays/nq_sdpo-qwen2.5-3b-em-ppoclip-replay
+#   OUTPUT_DIR      — default: res/train_replay_analysis/nq_sdpo-qwen2.5-3b-em-ppoclip-replay
 #   STEP_MIN        — minimum step (inclusive)
 #   STEP_MAX        — maximum step (inclusive)
 #   STEP_STRIDE     — analyze every Nth step (default: 1)
@@ -22,8 +22,8 @@ PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../../../.." && pwd)"
 SHARED_SCRIPT="${SCRIPT_DIR}/../analyze_reward_trend.py"
 cd "${PROJECT_ROOT}"
 
-REPLAY_DIR="${REPLAY_DIR:-res/train_replays/exp_sdpo_searchr1_0620}"
-OUTPUT_DIR="${OUTPUT_DIR:-res/train_replay_analysis/exp_sdpo_searchr1_0620}"
+REPLAY_DIR="${REPLAY_DIR:-res/train_replays/nq_sdpo-qwen2.5-3b-em-ppoclip-replay}"
+OUTPUT_DIR="${OUTPUT_DIR:-res/train_replay_analysis/nq_sdpo-qwen2.5-3b-em-ppoclip-replay}"
 STEP_STRIDE="${STEP_STRIDE:-1}"
 ROLLING_WINDOW="${ROLLING_WINDOW:-10}"
 SNAPSHOT_STEPS="${SNAPSHOT_STEPS:-1,50,100,150,200}"

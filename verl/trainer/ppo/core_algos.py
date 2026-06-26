@@ -325,6 +325,24 @@ def agg_loss(loss_mat: torch.Tensor, loss_mask: torch.Tensor, loss_agg_mode: str
     raise ValueError(f"Invalid loss_agg_mode: {loss_agg_mode}")
 
 
+def apply_sdpo_ppo_clip(
+    per_token_loss: torch.Tensor,
+    student_log_probs: torch.Tensor,
+    old_log_probs: torch.Tensor,
+    clip_ratio: float,
+    loss_mask: torch.Tensor,
+) -> tuple[torch.Tensor, dict[str, float]]:
+    """PPO-style two-sided clip on the SDPO distillation loss (minimization analogue of PPO clip)."""
+    negative_approx_kl = torch.clamp(student_log_probs - old_log_probs, min=-20.0, max=20.0)
+    ratio = torch.exp(negative_approx_kl)
+    clipped_ratio = torch.clamp(ratio, 1.0 - clip_ratio, 1.0 + clip_ratio)
+    unclipped = ratio * per_token_loss
+    clipped = clipped_ratio * per_token_loss
+    out = torch.max(unclipped, clipped)
+    clipfrac = verl_F.masked_mean(torch.gt(clipped, unclipped).float(), loss_mask)
+    return out, {"actor/sdpo_clipfrac": clipfrac.detach().item()}
+
+
 def compute_self_distillation_loss(
     student_log_probs: torch.Tensor,
     teacher_log_probs: torch.Tensor,
@@ -338,6 +356,7 @@ def compute_self_distillation_loss(
     self_distillation_mask: Optional[torch.Tensor] = None,
     loss_agg_mode: str = "token-mean",
     rollout_is_weights: Optional[torch.Tensor] = None,
+    clip_ratio: Optional[float] = None,
 ) -> tuple[torch.Tensor, dict[str, Any]]:
     """Self-distillation loss (SDPO): match student log-probs to teacher on the same response tokens."""
     metrics: dict[str, Any] = {}
@@ -408,14 +427,20 @@ def compute_self_distillation_loss(
         log_ratio = student_log_probs - teacher_log_probs
         per_token_loss = log_ratio.detach() * student_log_probs
 
-    is_clip = self_distillation_config.get("is_clip")
-    if is_clip is not None:
+    ppo_clip = self_distillation_config.get("ppo_clip", True)
+    if ppo_clip:
+        if clip_ratio is None:
+            raise ValueError("clip_ratio is required when self_distillation.ppo_clip is enabled.")
         if old_log_probs is None:
-            raise ValueError("old_log_probs is required for distillation IS ratio.")
-        negative_approx_kl = (student_log_probs - old_log_probs).detach()
-        negative_approx_kl = torch.clamp(negative_approx_kl, min=-20.0, max=20.0)
-        ratio = torch.exp(negative_approx_kl).clamp(max=is_clip)
-        per_token_loss = per_token_loss * ratio
+            raise ValueError("old_log_probs is required for PPO-clipped SDPO.")
+        per_token_loss, clip_metrics = apply_sdpo_ppo_clip(
+            per_token_loss=per_token_loss,
+            student_log_probs=student_log_probs,
+            old_log_probs=old_log_probs,
+            clip_ratio=clip_ratio,
+            loss_mask=loss_mask,
+        )
+        metrics.update(clip_metrics)
 
     if rollout_is_weights is not None:
         per_token_loss = per_token_loss * rollout_is_weights

@@ -17,13 +17,7 @@ from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 import matplotlib.pyplot as plt
 
 
-REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
-DEFAULT_REPLAY_DIR = os.path.join(
-    REPO_ROOT, "res", "train_replays", "exp_sdpo_searchr1_0620"
-)
-DEFAULT_OUTPUT_DIR = os.path.join(
-    REPO_ROOT, "res", "train_replay_analysis", "exp_sdpo_searchr1_0620"
-)
+REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 STEP_RE = re.compile(r"step_(\d+)\.jsonl$")
 
 
@@ -233,6 +227,8 @@ def plot_reward_trend(
     per_step: Sequence[StepStats],
     sources: Sequence[str],
     rolling_window: int,
+    plot_x_min: Optional[int],
+    plot_x_max: Optional[int],
 ) -> None:
     steps = [stats.step for stats in per_step]
     mean_scores = [stats.mean_score for stats in per_step]
@@ -241,45 +237,48 @@ def plot_reward_trend(
     fig, axes = plt.subplots(2, 1, figsize=(12, 8), sharex=True)
 
     ax = axes[0]
-    ax.plot(steps, mean_scores, marker="o", markersize=3, linewidth=1.2, label="mean score")
+    ax.plot(steps, mean_scores, marker="o", markersize=3, linewidth=1.2, label="average score")
     ax.plot(
         steps,
         rolling,
         linewidth=2.0,
         label=f"rolling mean (window={rolling_window})",
     )
-    for source in sources:
-        source_scores = []
-        for stats in per_step:
-            source_stats = stats.by_source.get(source)
-            if source_stats and source_stats["count"]:
-                source_scores.append(source_stats["score_sum"] / source_stats["count"])
-            else:
-                source_scores.append(float("nan"))
-        ax.plot(steps, source_scores, linewidth=1.0, alpha=0.8, label=f"{source} mean")
+    # for source in sources:
+    #     source_scores = []
+    #     for stats in per_step:
+    #         source_stats = stats.by_source.get(source)
+    #         if source_stats and source_stats["count"]:
+    #             source_scores.append(source_stats["score_sum"] / source_stats["count"])
+    #         else:
+    #             source_scores.append(float("nan"))
+    #     ax.plot(steps, source_scores, linewidth=1.0, alpha=0.8, label=f"{source} mean")
 
-    ax.set_ylabel("Reward / pass rate")
-    ax.set_title("Training replay reward trend")
+    ax.set_ylabel("Average reward (pass rate)")
+    ax.set_title("Training reward")
     ax.grid(True, alpha=0.3)
     ax.legend(loc="best", fontsize=9)
 
     ax = axes[1]
     mask_fracs = [stats.mask_frac for stats in per_step]
     mean_turns = [stats.turns_sum / stats.count if stats.count else 0.0 for stats in per_step]
-    ax.plot(steps, mask_fracs, marker="o", markersize=3, color="tab:orange", label="self_distillation_mask frac")
+    ax.plot(steps, mask_fracs, marker="o", markersize=3, color="tab:orange")
     ax.set_xlabel("Training step")
-    ax.set_ylabel("Mask fraction", color="tab:orange")
+    ax.set_ylabel("Ratio of effective samples", color="tab:orange")
     ax.tick_params(axis="y", labelcolor="tab:orange")
     ax.grid(True, alpha=0.3)
 
     ax2 = ax.twinx()
-    ax2.plot(steps, mean_turns, color="tab:green", linewidth=1.2, label="mean turns")
-    ax2.set_ylabel("Mean turns", color="tab:green")
+    ax2.plot(steps, mean_turns, color="tab:green", linewidth=1.2)
+    ax2.set_ylabel("Average number of conversation turns", color="tab:green")
     ax2.tick_params(axis="y", labelcolor="tab:green")
 
     lines = ax.get_lines() + ax2.get_lines()
     ax.legend(lines, [line.get_label() for line in lines], loc="best", fontsize=9)
-    ax.set_title("Distillation mask and trajectory length")
+    ax.set_title("Effective sample ratio and conversation turns")
+
+    if plot_x_min is not None and plot_x_max is not None:
+        axes[0].set_xlim(plot_x_min, plot_x_max)
 
     fig.tight_layout()
     fig.savefig(output_path, dpi=150)
@@ -334,7 +333,6 @@ def plot_score_distribution(
         return
 
     fig, ax = plt.subplots(figsize=(10, 5))
-    width = 0.8 / len(selected)
     for idx, step in enumerate(selected):
         stats = step_lookup[step]
         pass_rate = 100.0 * stats.pass_rate
@@ -386,13 +384,13 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--replay-dir",
-        default=DEFAULT_REPLAY_DIR,
-        help=f"Directory with step_*.jsonl replays (default: {DEFAULT_REPLAY_DIR})",
+        required=True,
+        help="Directory with step_*.jsonl replays",
     )
     parser.add_argument(
         "--output-dir",
-        default=DEFAULT_OUTPUT_DIR,
-        help=f"Directory for plots and summary files (default: {DEFAULT_OUTPUT_DIR})",
+        required=True,
+        help="Directory for plots and summary files",
     )
     parser.add_argument("--step-min", type=int, default=None, help="Minimum step (inclusive)")
     parser.add_argument("--step-max", type=int, default=None, help="Maximum step (inclusive)")
@@ -412,6 +410,23 @@ def parse_args() -> argparse.Namespace:
         "--snapshot-steps",
         default="1,50,100,150,200",
         help="Comma-separated steps for snapshot pass-rate bars (default: 1,50,100,150,200)",
+    )
+    parser.add_argument(
+        "--plot-x-min",
+        type=int,
+        default=0,
+        help="Minimum training step for trend plot x-axis (default: 0)",
+    )
+    parser.add_argument(
+        "--plot-x-max",
+        type=int,
+        default=200,
+        help="Maximum training step for trend plot x-axis (default: 200)",
+    )
+    parser.add_argument(
+        "--no-plot-xlim",
+        action="store_true",
+        help="Do not fix the trend plot x-axis range",
     )
     return parser.parse_args()
 
@@ -442,7 +457,16 @@ def main() -> None:
 
     trend_plot = os.path.join(output_dir, "reward_trend.png")
     dist_plot = os.path.join(output_dir, "reward_distribution.png")
-    plot_reward_trend(trend_plot, per_step, sources, args.rolling_window)
+    plot_x_min = None if args.no_plot_xlim else args.plot_x_min
+    plot_x_max = None if args.no_plot_xlim else args.plot_x_max
+    plot_reward_trend(
+        trend_plot,
+        per_step,
+        sources,
+        args.rolling_window,
+        plot_x_min,
+        plot_x_max,
+    )
 
     snapshot_steps = [int(item.strip()) for item in args.snapshot_steps.split(",") if item.strip()]
     plot_score_distribution(dist_plot, all_scores, scores_by_source, per_step, snapshot_steps)

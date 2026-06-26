@@ -16,7 +16,7 @@ actor_rollout_ref:
     self_distillation:
       filter_reprompt_before_update: false
       max_reprompt_len: 10240
-      is_clip: 2.0
+      ppo_clip: true
       teacher_regularization: actor
       full_logit_distillation: false
       alpha: 1.0

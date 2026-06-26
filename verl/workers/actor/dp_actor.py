@@ -602,6 +602,10 @@ class DataParallelPPOActor(BasePPOActor):
 
                 clip_ratio = self.config.clip_ratio
                 entropy_coeff = self.config.entropy_coeff
+                sdpo_clip_ratio = (
+                    clip_ratio if self_distillation_enabled and self_distillation_cfg.get('ppo_clip', True)
+                    else None
+                )
 
                 calculate_entropy = entropy_coeff != 0
                 self_distillation_mask = data.get('self_distillation_mask') if self_distillation_enabled else None
@@ -675,6 +679,7 @@ class DataParallelPPOActor(BasePPOActor):
                         self_distillation_config=self_distillation_cfg,
                         old_log_probs=old_log_prob,
                         self_distillation_mask=self_distillation_mask,
+                        clip_ratio=sdpo_clip_ratio,
                     )
                     grpo_loss, pg_clipfrac, ppo_kl = core_algos.compute_policy_loss(
                         old_log_prob=old_log_prob,
@@ -709,6 +714,7 @@ class DataParallelPPOActor(BasePPOActor):
                         self_distillation_config=self_distillation_cfg,
                         old_log_probs=old_log_prob,
                         self_distillation_mask=self_distillation_mask,
+                        clip_ratio=sdpo_clip_ratio,
                     )
                     log_metrics = {
                         'actor/pg_loss': pg_loss.detach().item(),

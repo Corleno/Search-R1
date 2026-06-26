@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# SDPO v02 variant: no distillation IS clipping + training replay JSONL export.
-# Based on train_sdpo_v02.sh; see README_SDPO.md and README_OPD.md (SDPO training replay).
+# SDPO v02 variant: PPO-clipped distillation + training replay JSONL export.
+# Based on train_sdpo_v02_noclip_replay.sh; see README_SDPO.md (PPO-clipped SDPO section).
 #
 # Usage:
 #   From repo root (recommended):
-#     ./scripts/experiments/rui_meng/train_sdpo_v02_noclip_replay.sh
+#     ./scripts/experiments/rui_meng/train_sdpo_v02_ppo_clip_replay.sh
 #   Or from anywhere:
-#     bash /path/to/Search-R1/scripts/experiments/rui_meng/train_sdpo_v02_noclip_replay.sh
+#     bash /path/to/Search-R1/scripts/experiments/rui_meng/train_sdpo_v02_ppo_clip_replay.sh
 #   Custom replay directory:
 #     TRAIN_REPLAY_DIR=res/train_replays/my_run \
-#     ./scripts/experiments/rui_meng/train_sdpo_v02_noclip_replay.sh
+#     ./scripts/experiments/rui_meng/train_sdpo_v02_ppo_clip_replay.sh
 #
 # Prerequisites:
 #   - Cwd resolves to repo root (script cd's there).
@@ -24,6 +24,7 @@ set -euo pipefail
 #   N_GPUS_PER_NODE — overrides auto count from CUDA_VISIBLE_DEVICES (comma-separated IDs).
 #   DATA_DIR, WAND_PROJECT, BASE_MODEL, EXPERIMENT_NAME
 #   TEACHER_REG — self-distillation teacher: actor | ema | ref (default actor)
+#   CLIP_RATIO — PPO clip epsilon for SDPO distillation (default 0.2; uses actor.clip_ratio)
 #   RETRIEVER_URL — full retrieve endpoint (default http://127.0.0.1:8000/retrieve)
 #   TRAIN_REPLAY_DIR — default: res/train_replays/${EXPERIMENT_NAME} (writes step_NNNN.jsonl per step)
 #   TMPDIR, PYTORCH_CUDA_ALLOC_CONF, VLLM_ATTENTION_BACKEND
@@ -64,18 +65,20 @@ fi
 
 WAND_PROJECT="${WAND_PROJECT:-Search-R1}"
 BASE_MODEL="${BASE_MODEL:-Qwen/Qwen2.5-3B}"
-EXPERIMENT_NAME="${EXPERIMENT_NAME:-nq_sdpo-qwen2.5-3b-em-noclip-replay}"
+EXPERIMENT_NAME="${EXPERIMENT_NAME:-nq_sdpo-qwen2.5-3b-em-ppoclip-replay}"
 TEACHER_REG="${TEACHER_REG:-actor}"
+CLIP_RATIO="${CLIP_RATIO:-0.2}"
 RETRIEVER_URL="${RETRIEVER_URL:-http://127.0.0.1:8000/retrieve}"
 TRAIN_REPLAY_DIR="${TRAIN_REPLAY_DIR:-res/train_replays/${EXPERIMENT_NAME}}"
 
-echo "train_sdpo_v02_noclip_replay:"
+echo "train_sdpo_v02_ppo_clip_replay:"
 echo "  TRAIN_FILE=${TRAIN_FILE}"
 echo "  VAL_FILE=${VAL_FILE}"
 echo "  BASE_MODEL=${BASE_MODEL}"
 echo "  EXPERIMENT_NAME=${EXPERIMENT_NAME}"
 echo "  TRAIN_REPLAY_DIR=${TRAIN_REPLAY_DIR}"
-echo "  ppo_clip=false (no PPO-clipped SDPO distillation clipping)"
+echo "  ppo_clip=true (PPO-clipped SDPO distillation)"
+echo "  clip_ratio=${CLIP_RATIO}"
 
 export VLLM_ATTENTION_BACKEND="${VLLM_ATTENTION_BACKEND:-XFORMERS}"
 
@@ -118,7 +121,8 @@ PYTHONUNBUFFERED=1 python3 -m verl.trainer.main_ppo \
     actor_rollout_ref.actor.fsdp_config.param_offload=true \
     actor_rollout_ref.actor.fsdp_config.grad_offload=true \
     actor_rollout_ref.actor.fsdp_config.optimizer_offload=true \
-    actor_rollout_ref.actor.self_distillation.ppo_clip=false \
+    actor_rollout_ref.actor.self_distillation.ppo_clip=true \
+    actor_rollout_ref.actor.clip_ratio="${CLIP_RATIO}" \
     actor_rollout_ref.rollout.log_prob_micro_batch_size=128 \
     actor_rollout_ref.rollout.tensor_model_parallel_size=1 \
     actor_rollout_ref.rollout.name=vllm \
