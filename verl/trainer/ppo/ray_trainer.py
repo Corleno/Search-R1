@@ -587,6 +587,48 @@ class RayPPOTrainer(object):
             records.append(record)
         return records
 
+    def _extract_generic_train_replay_records(self, batch, reward_tensor, step):
+        meta = batch.meta_info or {}
+        turns_stats = meta.get('turns_stats')
+        valid_action_stats = meta.get('valid_action_stats')
+        valid_search_stats = meta.get('valid_search_stats')
+        per_sample_scores = reward_tensor.sum(-1).tolist()
+
+        records = []
+        for i in range(len(batch)):
+            data_item = batch[i]
+            trajectory_str, response_str = self._decode_sample_trajectory(data_item)
+            non_tensor = data_item.non_tensor_batch
+            record = {
+                'step': step,
+                'index': self._serialize_non_tensor(non_tensor.get('index')),
+                'id': self._serialize_non_tensor(non_tensor.get('id')),
+                'uid': self._serialize_non_tensor(non_tensor.get('uid')),
+                'data_source': self._serialize_non_tensor(non_tensor.get('data_source')),
+                'question': self._serialize_non_tensor(non_tensor.get('question')),
+                'prompt': self._serialize_non_tensor(
+                    non_tensor.get('raw_prompt', non_tensor.get('prompt'))
+                ),
+                'ground_truth': self._serialize_non_tensor(non_tensor['reward_model']['ground_truth']),
+                'trajectory': trajectory_str,
+                'response': response_str,
+                'score': per_sample_scores[i],
+                'turns': turns_stats[i] if turns_stats is not None else None,
+                'valid_actions': valid_action_stats[i] if valid_action_stats is not None else None,
+                'valid_searches': valid_search_stats[i] if valid_search_stats is not None else None,
+            }
+            records.append(record)
+        return records
+
+    def _maybe_save_train_replay(self, batch, reward_tensor, step, replay_metadata=None):
+        if not self.config.trainer.get('save_train_replay', False):
+            return
+        if replay_metadata is not None:
+            records = self._extract_train_replay_records(batch, reward_tensor, replay_metadata, step)
+        else:
+            records = self._extract_generic_train_replay_records(batch, reward_tensor, step)
+        self._save_train_replay_step(records, step)
+
     def _save_val_replay(self, records, metric_dict, step=0, replay_path=None):
         if replay_path is None:
             replay_path = self.config.trainer.get('val_replay_path')
@@ -1364,6 +1406,7 @@ class RayPPOTrainer(object):
                             reward_tensor = self.reward_fn(batch)
                             batch.batch['token_level_scores'] = reward_tensor
                             batch.batch['token_level_rewards'] = batch.batch['token_level_scores']
+                            self._maybe_save_train_replay(batch, reward_tensor, self.global_steps)
                         else:
                             # compute scores. Support both model and function-based.
                             if self.use_rm:
@@ -1381,10 +1424,8 @@ class RayPPOTrainer(object):
                                     sd_batch, sd_metrics, replay_metadata = sd_result
                                     batch = batch.union(sd_batch)
                                     metrics.update(sd_metrics)
-                                    if self.config.trainer.get('save_train_replay', False):
-                                        records = self._extract_train_replay_records(
-                                            batch, reward_tensor, replay_metadata, self.global_steps)
-                                        self._save_train_replay_step(records, self.global_steps)
+                                    self._maybe_save_train_replay(
+                                        batch, reward_tensor, self.global_steps, replay_metadata=replay_metadata)
                                     sd_cfg = OmegaConf.select(
                                         self.config, 'actor_rollout_ref.actor.self_distillation', default={})
                                     teacher_reg = sd_cfg.get('teacher_regularization', 'actor')
@@ -1400,6 +1441,9 @@ class RayPPOTrainer(object):
                                 metrics.update(kl_metrics)
                             else:
                                 batch.batch['token_level_rewards'] = batch.batch['token_level_scores']
+
+                            if not _uses_self_distillation(self.config):
+                                self._maybe_save_train_replay(batch, reward_tensor, self.global_steps)
 
                         batch = compute_advantage(batch,
                                                   adv_estimator=self.config.algorithm.adv_estimator,
