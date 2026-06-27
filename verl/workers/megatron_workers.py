@@ -307,8 +307,9 @@ class ActorRolloutRefWorker(MegatronWorker):
             self.rollout, self.sharding_manager = self._build_rollout()
 
         if self._is_ref:
+            ref_model_path = OmegaConf.select(self.config, 'ref.model.path', default=self.config.model.path)
             self.ref_module, self.ref_model_config = self._build_model_optimizer(
-                model_path=self.config.model.path,
+                model_path=ref_model_path,
                 megatron_config=megatron_config,
                 optim_config=None,
                 override_model_config=override_model_config,

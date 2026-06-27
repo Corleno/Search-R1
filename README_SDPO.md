@@ -153,6 +153,7 @@ Outputs: EM metrics (`val/test_score/{data_source}`), plus `val/eval_prompt_mode
 | `actor_rollout_ref.rollout.n` | Keep at `1` for search; use `>1` only for single-shot (non-search) rollouts |
 | `algorithm.adv_estimator` | Use `grpo` (advantages drive GRPO loss; unused in pure SDPO) |
 | `actor_rollout_ref.actor.self_distillation.teacher_regularization` | `actor` (default): same weights; `ema`/`ref`: use colocated ref worker |
+| `actor_rollout_ref.ref.model.path` | Frozen ref teacher checkpoint when `teacher_regularization=ref` (defaults to actor path). Set via `REF_MODEL` in `train_sdpo_v02_noclip_replay_ref.sh`. Ref model must share tokenizer/vocab with actor (same model family). |
 | `actor_rollout_ref.actor.use_kl_loss` | Recommended `true` for SDPO+GRPO (matches GRPO v02) |
 
 ## PPO-clipped SDPO distillation

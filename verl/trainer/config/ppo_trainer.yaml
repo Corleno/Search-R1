@@ -88,6 +88,8 @@ actor_rollout_ref:
       optimizer_offload: False
       fsdp_size: -1
   ref:
+    model:
+      path: ${actor_rollout_ref.model.path}
     fsdp_config:
       param_offload: False
       wrap_policy:

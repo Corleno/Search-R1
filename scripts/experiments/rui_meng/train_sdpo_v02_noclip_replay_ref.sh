@@ -6,10 +6,10 @@ set -euo pipefail
 #
 # Usage:
 #   From repo root (recommended):
+#     BASE_MODEL=Qwen/Qwen2.5-3B REF_MODEL=Qwen/Qwen2.5-7B-Instruct \
 #     ./scripts/experiments/rui_meng/train_sdpo_v02_noclip_replay_ref.sh
 #   Or from anywhere:
 #     bash /path/to/Search-R1/scripts/experiments/rui_meng/train_sdpo_v02_noclip_replay_ref.sh
-#
 # Prerequisites:
 #   - conda env searchr1 (see scripts/install_envs.sh)
 #   - Cwd resolves to repo root (script cd's there).
@@ -20,7 +20,7 @@ set -euo pipefail
 # Optional environment overrides:
 #   CUDA_VISIBLE_DEVICES — limits which GPUs the process sees; must match trainer.n_gpus_per_node below.
 #   N_GPUS_PER_NODE — overrides auto count from CUDA_VISIBLE_DEVICES (comma-separated IDs).
-#   DATA_DIR, WAND_PROJECT, BASE_MODEL, EXPERIMENT_NAME
+#   DATA_DIR, WAND_PROJECT, BASE_MODEL (student), REF_MODEL (frozen teacher), EXPERIMENT_NAME
 #   TEACHER_REG — self-distillation teacher (default ref); use ref for this script
 #   TOTAL_TRAINING_STEPS — max training steps (default 200)
 #   RETRIEVER_URL — full retrieve endpoint (default http://127.0.0.1:8000/retrieve)
@@ -78,7 +78,8 @@ fi
 
 WAND_PROJECT="${WAND_PROJECT:-Search-R1}"
 BASE_MODEL="${BASE_MODEL:-Qwen/Qwen2.5-3B}"
-EXPERIMENT_NAME="${EXPERIMENT_NAME:-nq_sdpo-qwen2.5-3b-em-noclip-replay-ref}"
+REF_MODEL="${REF_MODEL:-${BASE_MODEL}}"
+EXPERIMENT_NAME="${EXPERIMENT_NAME:-nq_sdpo-${BASE_MODEL}-noclip-replay-ref-${REF_MODEL}}"
 TEACHER_REG="${TEACHER_REG:-ref}"
 TOTAL_TRAINING_STEPS="${TOTAL_TRAINING_STEPS:-200}"
 RETRIEVER_URL="${RETRIEVER_URL:-http://127.0.0.1:8000/retrieve}"
@@ -88,6 +89,7 @@ echo "train_sdpo_v02_noclip_replay_ref:"
 echo "  TRAIN_FILE=${TRAIN_FILE}"
 echo "  VAL_FILE=${VAL_FILE}"
 echo "  BASE_MODEL=${BASE_MODEL}"
+echo "  REF_MODEL=${REF_MODEL}"
 echo "  EXPERIMENT_NAME=${EXPERIMENT_NAME}"
 echo "  TEACHER_REG=${TEACHER_REG}"
 echo "  TOTAL_TRAINING_STEPS=${TOTAL_TRAINING_STEPS}"
@@ -103,6 +105,11 @@ if [[ "${TEACHER_REG}" == "ema" || "${TEACHER_REG}" == "ref" ]]; then
   EXTRA_ARGS+=(
     "actor_rollout_ref.ref.fsdp_config.param_offload=true"
     "actor_rollout_ref.actor.self_distillation.teacher_regularization=${TEACHER_REG}"
+  )
+fi
+if [[ "${TEACHER_REG}" == "ref" ]]; then
+  EXTRA_ARGS+=(
+    "actor_rollout_ref.ref.model.path=${REF_MODEL}"
   )
 fi
 
