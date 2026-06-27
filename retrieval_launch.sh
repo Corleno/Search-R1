@@ -38,6 +38,14 @@ if [[ ! -f "${CORPUS_FILE}" ]]; then
   exit 1
 fi
 
+echo "Starting retrieval server:"
+echo "  index:  ${INDEX_FILE}"
+echo "  corpus: ${CORPUS_FILE}"
+echo "  port:   ${RETRIEVAL_PORT}"
+echo "Loading ~61GB index + corpus + e5 model; first run also downloads the model."
+echo "Expect several minutes of startup output before the server is ready."
+echo ""
+
 python search_r1/search/retrieval_server.py --index_path "$INDEX_FILE" \
                                             --corpus_path "$CORPUS_FILE" \
                                             --topk 3 \

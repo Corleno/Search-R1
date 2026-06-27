@@ -207,14 +207,21 @@ class BM25Retriever(BaseRetriever):
 class DenseRetriever(BaseRetriever):
     def __init__(self, config):
         super().__init__(config)
+        print(f"Loading FAISS index from {self.index_path} ...", flush=True)
         self.index = faiss.read_index(self.index_path)
+        print("FAISS index loaded.", flush=True)
         if config.faiss_gpu:
+            print("Moving index to GPU(s) ...", flush=True)
             co = faiss.GpuMultipleClonerOptions()
             co.useFloat16 = True
             co.shard = True
             self.index = faiss.index_cpu_to_all_gpus(self.index, co=co)
+            print("Index on GPU.", flush=True)
 
+        print(f"Loading corpus from {self.corpus_path} ...", flush=True)
         self.corpus = load_corpus(self.corpus_path)
+        print(f"Corpus loaded ({len(self.corpus)} documents).", flush=True)
+        print(f"Loading encoder {config.retrieval_model_path} ...", flush=True)
         self.encoder = Encoder(
             model_name = self.retrieval_method,
             model_path = config.retrieval_model_path,
@@ -224,6 +231,7 @@ class DenseRetriever(BaseRetriever):
         )
         self.topk = config.retrieval_topk
         self.batch_size = config.retrieval_batch_size
+        print("Encoder ready.", flush=True)
 
     def _search(self, query: str, num: int = None, return_score: bool = False):
         if num is None:
@@ -338,11 +346,15 @@ def retrieve_endpoint(request: QueryRequest):
         request.topk = config.retrieval_topk  # fallback to default
 
     # Perform batch retrieval
-    results, scores = retriever.batch_search(
+    search_out = retriever.batch_search(
         query_list=request.queries,
         num=request.topk,
         return_score=request.return_scores
     )
+    if request.return_scores:
+        results, scores = search_out
+    else:
+        results = search_out
     
     # Format response
     resp = []
@@ -393,7 +405,9 @@ if __name__ == "__main__":
     )
 
     # 2) Instantiate a global retriever so it is loaded once and reused.
+    print("Initializing retriever (index + corpus + model; may take 10–20 min on first run) ...", flush=True)
     retriever = get_retriever(config)
     
     # 3) Launch the server (host 0.0.0.0; port from --port or RETRIEVAL_PORT).
+    print(f"Retriever ready. Starting HTTP server on 0.0.0.0:{args.port} ...", flush=True)
     uvicorn.run(app, host="0.0.0.0", port=args.port)

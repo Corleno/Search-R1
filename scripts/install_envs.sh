@@ -203,11 +203,7 @@ install_retriever() {
   create_env_if_missing retriever 3.10
 
   echo "Installing PyTorch (cu121) via pip ..."
-  # Pip avoids multi-GB conda pytorch downloads and ClobberError from torchvision deps.
-  # README conda torch is for faiss-gpu; pip torch 2.4+cu121 works with faiss-gpu 1.8.
-  conda run -n retriever pip install \
-    torch==2.4.0 torchvision==0.19.0 torchaudio==2.4.0 \
-    --index-url https://download.pytorch.org/whl/cu121
+  conda install -n retriever -y -c pytorch==2.4.0 torchvision==0.19.0 torchaudio==2.4.0 pytorch-cuda=12.1 -c pytorch -c nvidia
 
   echo "Installing transformers, datasets, pyserini ..."
   # transformers 5.x needs a newer torch and breaks retrieval_server with torch 2.4 (README)
