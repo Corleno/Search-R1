@@ -520,6 +520,17 @@ def _expand_mask(mask: torch.Tensor, dtype: torch.dtype, tgt_len: Optional[int] 
     return inverted_mask.masked_fill(inverted_mask.to(torch.bool), torch.finfo(dtype).min)
 
 
+def ema_update_module_(teacher_module: nn.Module, student_module: nn.Module, update_rate: float) -> None:
+    """In-place EMA sync: teacher <- (1 - rate) * teacher + rate * student."""
+    with torch.no_grad():
+        for teacher_param, student_param in zip(
+            teacher_module.parameters(),
+            student_module.parameters(),
+        ):
+            student_data = student_param.data.to(device=teacher_param.device)
+            teacher_param.data.mul_(1.0 - update_rate).add_(student_data, alpha=update_rate)
+
+
 def get_unpad_data(attention_mask):
     seqlens_in_batch = attention_mask.sum(dim=-1, dtype=torch.int32)
     indices = torch.nonzero(attention_mask.flatten(), as_tuple=False).flatten()

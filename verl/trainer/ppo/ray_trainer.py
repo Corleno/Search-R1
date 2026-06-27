@@ -1427,6 +1427,12 @@ class RayPPOTrainer(object):
                                 actor_output = self.actor_rollout_wg.update_actor(actor_batch)
                                 actor_output_metrics = reduce_metrics(actor_output.meta_info['metrics'])
                                 metrics.update(actor_output_metrics)
+                                sd_cfg = OmegaConf.select(
+                                    self.config, 'actor_rollout_ref.actor.self_distillation', default={})
+                                teacher_reg = sd_cfg.get('teacher_regularization', 'actor')
+                                if teacher_reg == 'ema' and self.use_reference_policy:
+                                    with _timer('sdpo_ema_sync', timing_raw):
+                                        self.ref_policy_wg.sync_sdpo_ema_teacher()
 
                     # validate
                     if self.val_reward_fn is not None and self.config.trainer.test_freq > 0 and \

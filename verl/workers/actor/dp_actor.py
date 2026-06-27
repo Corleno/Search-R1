@@ -66,26 +66,6 @@ class DataParallelPPOActor(BasePPOActor):
             return OmegaConf.select(config, 'policy_loss.loss_mode')
         return config.get('loss_mode', 'vanilla')
 
-    def _update_teacher(self) -> None:
-        from omegaconf import OmegaConf
-        self_distillation_cfg = OmegaConf.select(self.config, 'self_distillation', default=None)
-        if self_distillation_cfg is None or self._get_loss_mode(self.config) not in ('sdpo', 'sdpo_grpo'):
-            return
-        if self_distillation_cfg.get('teacher_regularization', 'actor') != 'ema':
-            return
-        update_rate = self_distillation_cfg.get('teacher_update_rate', 0.0)
-        if update_rate == 0.0:
-            return
-        if self.teacher_module is None or self.teacher_module is self.actor_module:
-            return
-        with torch.no_grad():
-            for teacher_param, student_param in zip(
-                self.teacher_module.parameters(),
-                self.actor_module.parameters(),
-            ):
-                student_data = student_param.data.to(device=teacher_param.device)
-                teacher_param.data.mul_(1.0 - update_rate).add_(student_data, alpha=update_rate)
-
     def _debug_print_distillation_inputs(
         self,
         student_input_ids: torch.Tensor,
@@ -573,7 +553,6 @@ class DataParallelPPOActor(BasePPOActor):
         dataloader = batch.split(self.config.ppo_mini_batch_size)
 
         metrics = {}
-        did_update = False
         for batch_idx, data in enumerate(dataloader):
             # split batch into micro_batches
             mini_batch = data
@@ -765,11 +744,7 @@ class DataParallelPPOActor(BasePPOActor):
                 append_to_dict(metrics, log_metrics)
 
             grad_norm = self._optimizer_step()
-            if torch.isfinite(grad_norm).item():
-                did_update = True
             data = {'actor/grad_norm': grad_norm.detach().item()}
             append_to_dict(metrics, data)
         self.actor_optimizer.zero_grad()
-        if did_update:
-            self._update_teacher()
         return metrics

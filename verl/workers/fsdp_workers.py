@@ -328,13 +328,6 @@ class ActorRolloutRefWorker(Worker):
                                               actor_module=self.actor_module_fsdp,
                                               actor_optimizer=self.actor_optimizer,
                                               tokenizer=self.tokenizer)
-            loss_mode = OmegaConf.select(self.config.actor, 'policy_loss.loss_mode',
-                                         default=OmegaConf.select(self.config.actor, 'loss_mode', default='vanilla'))
-            if loss_mode in ('sdpo', 'sdpo_grpo'):
-                sd_cfg = OmegaConf.select(self.config.actor, 'self_distillation', default=None)
-                if sd_cfg is not None and sd_cfg.get('teacher_regularization', 'actor') == 'ema':
-                    if hasattr(self, 'ref_module_fsdp'):
-                        self.actor.teacher_module = self.ref_module_fsdp
 
         if self._is_rollout:
             self.rollout, self.rollout_sharding_manager = self._build_rollout()
@@ -575,6 +568,49 @@ class ActorRolloutRefWorker(Worker):
             offload_fsdp_param_and_grad(module=self.ref_module_fsdp, offload_grad=self._is_offload_grad)
         torch.cuda.empty_cache()
         return output
+
+    @register(dispatch_mode=Dispatch.ONE_TO_ALL)
+    def sync_sdpo_ema_teacher(self):
+        """EMA-sync ref (teacher) weights toward the colocated actor after an optimizer step."""
+        from omegaconf import OmegaConf
+
+        if not self._is_ref:
+            return
+
+        sd_cfg = OmegaConf.select(self.config, 'actor.self_distillation', default=None)
+        if sd_cfg is None or sd_cfg.get('teacher_regularization', 'actor') != 'ema':
+            return
+
+        update_rate = float(sd_cfg.get('teacher_update_rate', 0.0))
+        if update_rate == 0.0:
+            return
+
+        parent = getattr(self, '_worker_dict_parent', None)
+        if parent is None:
+            return
+        actor_w = parent.get('actor_rollout')
+        if actor_w is None or not hasattr(actor_w, 'actor_module_fsdp'):
+            return
+
+        actor_offload = actor_w._is_offload_param
+        ref_offload = self._is_offload_param
+        if actor_offload:
+            load_fsdp_param_and_grad(module=actor_w.actor_module_fsdp,
+                                     device_id=torch.cuda.current_device(),
+                                     load_grad=actor_w._is_offload_grad)
+        if ref_offload:
+            load_fsdp_param_and_grad(module=self.ref_module_fsdp,
+                                     device_id=torch.cuda.current_device(),
+                                     load_grad=False)
+
+        verl_F.ema_update_module_(self.ref_module_fsdp, actor_w.actor_module_fsdp, update_rate)
+
+        if ref_offload:
+            offload_fsdp_param_and_grad(module=self.ref_module_fsdp, offload_grad=False)
+        if actor_offload:
+            offload_fsdp_param_and_grad(module=actor_w.actor_module_fsdp,
+                                        offload_grad=actor_w._is_offload_grad)
+        torch.cuda.empty_cache()
 
     @register(dispatch_mode=Dispatch.ONE_TO_ALL)
     def save_checkpoint(self, local_path, hdfs_path=None):

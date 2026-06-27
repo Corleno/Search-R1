@@ -25,7 +25,7 @@ OUTPUT_DIR="${OUTPUT_DIR:-res/train_replay_analysis/compare}"
 ROLLING_WINDOW="${ROLLING_WINDOW:-10}"
 PLOT_X_MIN="${PLOT_X_MIN:-0}"
 PLOT_X_MAX="${PLOT_X_MAX:-200}"
-EXPERIMENTS="${EXPERIMENTS:-sdpo=res/train_replay_analysis/exp_sdpo_searchr1_0620,sdpo-ppo=res/train_replay_analysis/nq_sdpo-qwen2.5-3b-em-ppoclip-replay}"
+EXPERIMENTS="${EXPERIMENTS:-fcsd=res/train_replay_analysis/exp_sdpo_searchr1_0620,fcsd-ppo=res/train_replay_analysis/nq_sdpo-qwen2.5-3b-em-ppoclip-replay,fcsd-ema=res/train_replay_analysis/nq_sdpo-qwen2.5-3b-em-noclip-replay-ema}"
 
 ARGS=(
   --output-dir "${OUTPUT_DIR}"

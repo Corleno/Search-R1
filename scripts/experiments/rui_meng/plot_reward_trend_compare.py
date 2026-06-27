@@ -28,6 +28,15 @@ DEFAULT_EXPERIMENTS = (
             "nq_sdpo-qwen2.5-3b-em-ppoclip-replay",
         ),
     ),
+    (
+        "fcsd-ema",
+        os.path.join(
+            REPO_ROOT,
+            "res",
+            "train_replay_analysis",
+            "nq_sdpo-qwen2.5-3b-em-noclip-replay-ema",
+        ),
+    ),
 )
 PANELS = ("combined", "nq", "hotpotqa")
 PANEL_LABELS = {
@@ -38,6 +47,7 @@ PANEL_LABELS = {
 EXPERIMENT_STYLES = (
     {"color": "tab:blue", "marker": "o", "linestyle": "-"},
     {"color": "tab:orange", "marker": "s", "linestyle": "-"},
+    {"color": "tab:green", "marker": "^", "linestyle": "-"},
 )
 
 

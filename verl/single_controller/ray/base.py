@@ -448,6 +448,8 @@ def create_colocated_worker_cls(class_dict: dict[str, RayClassWithInitArgs]):
                 with patch.dict(os.environ, {'DISABLE_WORKER_INIT': '1'}):
                     self.worker_dict[key] = user_defined_cls(*init_args_dict[key].get('args', ()),
                                                              **init_args_dict[key].get('kwargs', {}))
+            for inst in self.worker_dict.values():
+                inst._worker_dict_parent = self.worker_dict
 
     # now monkey-patch the methods from inner class to WorkerDict
     for key, user_defined_cls in cls_dict.items():
