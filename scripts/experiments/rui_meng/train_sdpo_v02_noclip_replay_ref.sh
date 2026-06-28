@@ -6,8 +6,12 @@ set -euo pipefail
 #
 # Usage:
 #   From repo root (recommended):
+#     Script-run with default ref model:
+#     ./scripts/experiments/rui_meng/train_sdpo_v02_noclip_replay_ref.sh
+#     Script-run with custom ref model:
 #     BASE_MODEL=Qwen/Qwen2.5-3B REF_MODEL=Qwen/Qwen2.5-7B-Instruct \
 #     EXPERIMENT_NAME=sdpo_v02_noclip_replay_ref_qwen2.5-3b-qwen2.5-7b-instruct \
+#     TOTAL_TRAINING_STEPS=1000 \
 #     ./scripts/experiments/rui_meng/train_sdpo_v02_noclip_replay_ref.sh
 #   Or from anywhere:
 #     bash /path/to/Search-R1/scripts/experiments/rui_meng/train_sdpo_v02_noclip_replay_ref.sh
@@ -96,6 +100,9 @@ echo "  TEACHER_REG=${TEACHER_REG}"
 echo "  TOTAL_TRAINING_STEPS=${TOTAL_TRAINING_STEPS}"
 echo "  TRAIN_REPLAY_DIR=${TRAIN_REPLAY_DIR}"
 echo "  ppo_clip=false (no PPO-clipped SDPO distillation clipping)"
+if [[ "${TEACHER_REG}" == "ref" && "${REF_MODEL}" != "${BASE_MODEL}" ]]; then
+  echo "  external_ref_full_batch_distill=auto (REF_MODEL != BASE_MODEL: SDPO applies to all samples)"
+fi
 
 export VLLM_ATTENTION_BACKEND="${VLLM_ATTENTION_BACKEND:-XFORMERS}"
 

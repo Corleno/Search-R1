@@ -156,6 +156,12 @@ Outputs: EM metrics (`val/test_score/{data_source}`), plus `val/eval_prompt_mode
 | `actor_rollout_ref.ref.model.path` | Frozen ref teacher checkpoint when `teacher_regularization=ref` (defaults to actor path). Set via `REF_MODEL` in `train_sdpo_v02_noclip_replay_ref.sh`. Ref model must share tokenizer/vocab with actor (same model family). |
 | `actor_rollout_ref.actor.use_kl_loss` | Recommended `true` for SDPO+GRPO (matches GRPO v02) |
 
+### External ref teacher (full-batch SDPO)
+
+When `teacher_regularization=ref` and `ref.model.path` differs from the actor checkpoint, SDPO **automatically** applies to the **full actor batch** (not only reprompt-active samples). Samples without peer success still distill from the frozen ref teacher on the original prompt plus rollout response; samples with peer success keep reprompt-enriched teacher context.
+
+Train replay `self_distillation_mask` still records whether a peer solution or feedback was used for reprompting, not whether the sample was included in the loss. WandB logs `self_distillation/external_ref_full_batch_distill=1` when this mode is active.
+
 ## PPO-clipped SDPO distillation
 
 When `ppo_clip=true`, the per-token distillation term

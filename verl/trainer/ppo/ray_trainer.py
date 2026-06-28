@@ -139,6 +139,17 @@ def _is_sdpo_only_mode(config) -> bool:
     return _get_loss_mode(config) == 'sdpo'
 
 
+def _distill_inactive_samples_with_external_ref(config) -> bool:
+    if not _is_sdpo_only_mode(config):
+        return False
+    sd_cfg = OmegaConf.select(config, 'actor_rollout_ref.actor.self_distillation', default={})
+    if sd_cfg.get('teacher_regularization', 'actor') != 'ref':
+        return False
+    actor_path = str(OmegaConf.select(config, 'actor_rollout_ref.model.path', default=''))
+    ref_path = str(OmegaConf.select(config, 'actor_rollout_ref.ref.model.path', default=actor_path))
+    return ref_path != actor_path
+
+
 def compute_advantage(data: DataProto, adv_estimator, gamma=1.0, lam=1.0, num_repeat=1, config=None):
     # prepare response group
     # TODO: add other ways to estimate advantages
@@ -1198,6 +1209,10 @@ class RayPPOTrainer(object):
         if not _is_sdpo_only_mode(self.config):
             return batch, True
 
+        if _distill_inactive_samples_with_external_ref(self.config):
+            metrics['self_distillation/external_ref_full_batch_distill'] = 1.0
+            return batch, True
+
         sd_cfg = OmegaConf.select(self.config, 'actor_rollout_ref.actor.self_distillation', default={})
         if not sd_cfg.get('filter_reprompt_before_update', True):
             return batch, True
@@ -1467,6 +1482,9 @@ class RayPPOTrainer(object):
                                 batch, metrics = self._create_loss_mask(batch, metrics)
                             actor_batch, should_update_actor = self._filter_and_rebalance_sdpo_actor_batch(
                                 batch, metrics)
+                            if should_update_actor and _distill_inactive_samples_with_external_ref(self.config):
+                                actor_batch.batch['self_distillation_mask'] = torch.ones_like(
+                                    actor_batch.batch['self_distillation_mask'])
                             if should_update_actor:
                                 actor_output = self.actor_rollout_wg.update_actor(actor_batch)
                                 actor_output_metrics = reduce_metrics(actor_output.meta_info['metrics'])
