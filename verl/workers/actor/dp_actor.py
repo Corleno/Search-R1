@@ -586,7 +586,11 @@ class DataParallelPPOActor(BasePPOActor):
                     else None
                 )
 
-                calculate_entropy = entropy_coeff != 0
+                calculate_entropy = (
+                    bool(getattr(self.config, 'calculate_entropy', False))
+                    or entropy_coeff != 0
+                    or self_distillation_enabled
+                )
                 self_distillation_mask = data.get('self_distillation_mask') if self_distillation_enabled else None
 
                 if advantages.dim() == 3 and not self_distillation_enabled:
@@ -699,9 +703,11 @@ class DataParallelPPOActor(BasePPOActor):
                         'actor/pg_loss': pg_loss.detach().item(),
                     }
                     log_metrics.update(pg_metrics)
-                    entropy_loss = torch.tensor(0.0, device=log_prob.device)
-                    if calculate_entropy and entropy is not None:
+                    if entropy is not None:
                         entropy_loss = verl_F.masked_mean(entropy, response_mask)
+                    else:
+                        entropy_loss = torch.tensor(0.0, device=log_prob.device)
+                    log_metrics['actor/entropy_loss'] = entropy_loss.detach().item()
                     policy_loss = pg_loss - entropy_loss * entropy_coeff
                 else:
                     pg_loss, pg_clipfrac, ppo_kl = core_algos.compute_policy_loss(

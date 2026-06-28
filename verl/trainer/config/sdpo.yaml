@@ -18,6 +18,7 @@ actor_rollout_ref:
       teacher_regularization: actor
       full_logit_distillation: false
       alpha: 1.0
+    calculate_entropy: true
     optim:
       lr: 1e-6
   ref:

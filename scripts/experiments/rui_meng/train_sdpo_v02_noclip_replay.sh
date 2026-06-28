@@ -128,6 +128,7 @@ PYTHONUNBUFFERED=1 python3 -m verl.trainer.main_ppo \
     algorithm.no_think_rl=false \
     actor_rollout_ref.rollout.temperature=1 \
     actor_rollout_ref.actor.state_masking=true \
+    actor_rollout_ref.actor.calculate_entropy=true \
     reward_model.enable=false \
     trainer.logger=['wandb'] \
     +trainer.val_only=false \

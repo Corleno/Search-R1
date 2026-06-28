@@ -7,6 +7,7 @@ set -euo pipefail
 # Usage:
 #   From repo root (recommended):
 #     BASE_MODEL=Qwen/Qwen2.5-3B REF_MODEL=Qwen/Qwen2.5-7B-Instruct \
+#     EXPERIMENT_NAME=sdpo_v02_noclip_replay_ref_qwen2.5-3b-qwen2.5-7b-instruct \
 #     ./scripts/experiments/rui_meng/train_sdpo_v02_noclip_replay_ref.sh
 #   Or from anywhere:
 #     bash /path/to/Search-R1/scripts/experiments/rui_meng/train_sdpo_v02_noclip_replay_ref.sh
@@ -152,6 +153,7 @@ PYTHONUNBUFFERED=1 python3 -m verl.trainer.main_ppo \
     algorithm.no_think_rl=false \
     actor_rollout_ref.rollout.temperature=1 \
     actor_rollout_ref.actor.state_masking=true \
+    actor_rollout_ref.actor.calculate_entropy=true \
     reward_model.enable=false \
     trainer.logger=['wandb'] \
     +trainer.val_only=false \
