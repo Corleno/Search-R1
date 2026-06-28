@@ -6,11 +6,17 @@ set -euo pipefail
 #
 # Usage:
 #   From repo root (recommended):
-#     Script-run with default ref model:
+#     (1) Script-run with default ref model:
 #     ./scripts/experiments/rui_meng/train_sdpo_v02_noclip_replay_ref.sh
-#     Script-run with custom ref model:
+#     (2) Script-run with custom ref model:
 #     BASE_MODEL=Qwen/Qwen2.5-3B REF_MODEL=Qwen/Qwen2.5-7B-Instruct \
 #     EXPERIMENT_NAME=sdpo_v02_noclip_replay_ref_qwen2.5-3b-qwen2.5-7b-instruct \
+#     TOTAL_TRAINING_STEPS=1000 \
+#     ./scripts/experiments/rui_meng/train_sdpo_v02_noclip_replay_ref.sh
+#     (3) Script-run with custom ref model and reprompt templates:
+#     REPROMPT_TEMPLATE_FILE=scripts/experiments/rui_meng/reprompt_templates/empty_reprompt.txt \
+#     BASE_MODEL=Qwen/Qwen2.5-3B REF_MODEL=Qwen/Qwen2.5-7B-Instruct \
+#     EXPERIMENT_NAME=sdpo_v02_noclip_replay_ref_qwen2.5-3b-qwen2.5-7b-instruct-empty-reprompt \
 #     TOTAL_TRAINING_STEPS=1000 \
 #     ./scripts/experiments/rui_meng/train_sdpo_v02_noclip_replay_ref.sh
 #   Or from anywhere:
@@ -30,6 +36,9 @@ set -euo pipefail
 #   TOTAL_TRAINING_STEPS — max training steps (default 200)
 #   RETRIEVER_URL — full retrieve endpoint (default http://127.0.0.1:8000/retrieve)
 #   TRAIN_REPLAY_DIR — default: res/train_replays/${EXPERIMENT_NAME} (writes step_NNNN.jsonl per step)
+#   REPROMPT_TEMPLATE_FILE — optional path to file overriding self_distillation.reprompt_template
+#   SOLUTION_TEMPLATE_FILE — optional path to file overriding self_distillation.solution_template
+#   FEEDBACK_TEMPLATE_FILE — optional path to file overriding self_distillation.feedback_template
 #   TMPDIR, PYTORCH_CUDA_ALLOC_CONF, VLLM_ATTENTION_BACKEND
 
 _CONDA_BASE="${CONDA_BASE:-}"
@@ -99,6 +108,9 @@ echo "  EXPERIMENT_NAME=${EXPERIMENT_NAME}"
 echo "  TEACHER_REG=${TEACHER_REG}"
 echo "  TOTAL_TRAINING_STEPS=${TOTAL_TRAINING_STEPS}"
 echo "  TRAIN_REPLAY_DIR=${TRAIN_REPLAY_DIR}"
+echo "  REPROMPT_TEMPLATE_FILE=${REPROMPT_TEMPLATE_FILE:-}"
+echo "  SOLUTION_TEMPLATE_FILE=${SOLUTION_TEMPLATE_FILE:-}"
+echo "  FEEDBACK_TEMPLATE_FILE=${FEEDBACK_TEMPLATE_FILE:-}"
 echo "  ppo_clip=false (no PPO-clipped SDPO distillation clipping)"
 if [[ "${TEACHER_REG}" == "ref" && "${REF_MODEL}" != "${BASE_MODEL}" ]]; then
   echo "  external_ref_full_batch_distill=auto (REF_MODEL != BASE_MODEL: SDPO applies to all samples)"
@@ -119,6 +131,15 @@ if [[ "${TEACHER_REG}" == "ref" ]]; then
   EXTRA_ARGS+=(
     "actor_rollout_ref.ref.model.path=${REF_MODEL}"
   )
+fi
+if [[ -n "${REPROMPT_TEMPLATE_FILE:-}" ]]; then
+  EXTRA_ARGS+=("actor_rollout_ref.actor.self_distillation.reprompt_template_file=${REPROMPT_TEMPLATE_FILE}")
+fi
+if [[ -n "${SOLUTION_TEMPLATE_FILE:-}" ]]; then
+  EXTRA_ARGS+=("actor_rollout_ref.actor.self_distillation.solution_template_file=${SOLUTION_TEMPLATE_FILE}")
+fi
+if [[ -n "${FEEDBACK_TEMPLATE_FILE:-}" ]]; then
+  EXTRA_ARGS+=("actor_rollout_ref.actor.self_distillation.feedback_template_file=${FEEDBACK_TEMPLATE_FILE}")
 fi
 
 cd "${PROJECT_ROOT}"

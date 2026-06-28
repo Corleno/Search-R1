@@ -145,6 +145,9 @@ Outputs: EM metrics (`val/test_score/{data_source}`), plus `val/eval_prompt_mode
 | `actor_rollout_ref.actor.policy_loss.sdpo_coef` | Weight for SDPO term in hybrid mode (default `1.0`) |
 | `actor_rollout_ref.actor.policy_loss.grpo_coef` | Weight for GRPO term in hybrid mode (default `1.0`) |
 | `actor_rollout_ref.actor.self_distillation.*` | Reprompt templates, `success_reward_threshold`, `ppo_clip`, etc. |
+| `actor_rollout_ref.actor.self_distillation.reprompt_template_file` | Path to file overriding `reprompt_template` |
+| `actor_rollout_ref.actor.self_distillation.solution_template_file` | Path to file overriding `solution_template` |
+| `actor_rollout_ref.actor.self_distillation.feedback_template_file` | Path to file overriding `feedback_template` |
 | `actor_rollout_ref.actor.self_distillation.ppo_clip` | `false` (default): unclipped distillation loss; set `true` for PPO-style two-sided clip using `actor.clip_ratio` |
 | `actor_rollout_ref.actor.clip_ratio` | ε for PPO clip on GRPO loss and, when `ppo_clip=true`, on SDPO distillation loss (default `0.2`) |
 | `actor_rollout_ref.actor.self_distillation.filter_reprompt_before_update` | `true` for pure SDPO; `false` for SDPO+GRPO (full-batch updates) |
@@ -155,6 +158,41 @@ Outputs: EM metrics (`val/test_score/{data_source}`), plus `val/eval_prompt_mode
 | `actor_rollout_ref.actor.self_distillation.teacher_regularization` | `actor` (default): same weights; `ema`/`ref`: use colocated ref worker |
 | `actor_rollout_ref.ref.model.path` | Frozen ref teacher checkpoint when `teacher_regularization=ref` (defaults to actor path). Set via `REF_MODEL` in `train_sdpo_v02_noclip_replay_ref.sh`. Ref model must share tokenizer/vocab with actor (same model family). |
 | `actor_rollout_ref.actor.use_kl_loss` | Recommended `true` for SDPO+GRPO (matches GRPO v02) |
+
+### Custom reprompt templates (file-based)
+
+Default reprompt text lives in `ppo_trainer.yaml` under `actor_rollout_ref.actor.self_distillation`. To customize without editing YAML, point `*_template_file` at UTF-8 text files (or use the shell env vars below). When a `*_template_file` is set, it overrides the inline `*_template` for that run.
+
+Template placeholders:
+
+| Template | Placeholders |
+|----------|--------------|
+| `reprompt_template` | `{prompt}`, `{solution}`, `{feedback}` (`solution` / `feedback` are pre-formatted sections, often empty) |
+| `solution_template` | `{successful_previous_attempt}` |
+| `feedback_template` | `{feedback_raw}` |
+
+Example with `train_sdpo_v02_noclip_replay.sh` (bundled default reprompt template):
+
+```bash
+REPROMPT_TEMPLATE_FILE=scripts/experiments/rui_meng/reprompt_templates/default_reprompt.txt \
+./scripts/experiments/rui_meng/train_sdpo_v02_noclip_replay.sh
+```
+
+Custom templates:
+
+```bash
+REPROMPT_TEMPLATE_FILE=./my_reprompt.txt \
+SOLUTION_TEMPLATE_FILE=./my_solution.txt \
+./scripts/experiments/rui_meng/train_sdpo_v02_noclip_replay.sh
+```
+
+Hydra equivalent:
+
+```bash
+python3 -m verl.trainer.main_ppo --config-name sdpo \
+  actor_rollout_ref.actor.self_distillation.reprompt_template_file=./my_reprompt.txt \
+  ...
+```
 
 ### External ref teacher (full-batch SDPO)
 

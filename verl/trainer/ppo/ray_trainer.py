@@ -988,6 +988,10 @@ class RayPPOTrainer(object):
             for i in range(batch_size)
         ]
 
+        from verl.trainer.ppo.reprompt_templates import resolve_self_distillation_templates
+
+        templates = resolve_self_distillation_templates(self_distillation_cfg)
+
         def _build_teacher_message(i: int) -> tuple[list, bool]:
             system_messages = list(batch.non_tensor_batch["raw_prompt"][i][:-1])
             has_solution = solution_strs[i] is not None
@@ -998,19 +1002,19 @@ class RayPPOTrainer(object):
 
             solution_section = ""
             if has_solution:
-                solution_section = self_distillation_cfg.solution_template.format(
+                solution_section = templates["solution_template"].format(
                     successful_previous_attempt=solution_strs[i]
                 )
 
             feedback_section = ""
             if use_feedback:
-                feedback_section = self_distillation_cfg.feedback_template.format(
+                feedback_section = templates["feedback_template"].format(
                     feedback_raw=feedback_list[i]
                 )
 
             message_written = use_feedback or has_solution
             if message_written:
-                reprompt_text = self_distillation_cfg.reprompt_template.format(
+                reprompt_text = templates["reprompt_template"].format(
                     prompt=prompt_texts[i],
                     solution=solution_section,
                     feedback=feedback_section,

@@ -26,6 +26,9 @@ set -euo pipefail
 #   TOTAL_TRAINING_STEPS — max training steps (default 200)
 #   RETRIEVER_URL — full retrieve endpoint (default http://127.0.0.1:8000/retrieve)
 #   TRAIN_REPLAY_DIR — default: res/train_replays/${EXPERIMENT_NAME} (writes step_NNNN.jsonl per step)
+#   REPROMPT_TEMPLATE_FILE — optional path to file overriding self_distillation.reprompt_template
+#   SOLUTION_TEMPLATE_FILE — optional path to file overriding self_distillation.solution_template
+#   FEEDBACK_TEMPLATE_FILE — optional path to file overriding self_distillation.feedback_template
 #   TMPDIR, PYTORCH_CUDA_ALLOC_CONF, VLLM_ATTENTION_BACKEND
 
 _CONDA_BASE="${CONDA_BASE:-}"
@@ -95,6 +98,9 @@ echo "  TEACHER_REG=${TEACHER_REG}"
 echo "  TEACHER_UPDATE_RATE=${TEACHER_UPDATE_RATE}"
 echo "  TOTAL_TRAINING_STEPS=${TOTAL_TRAINING_STEPS}"
 echo "  TRAIN_REPLAY_DIR=${TRAIN_REPLAY_DIR}"
+echo "  REPROMPT_TEMPLATE_FILE=${REPROMPT_TEMPLATE_FILE:-}"
+echo "  SOLUTION_TEMPLATE_FILE=${SOLUTION_TEMPLATE_FILE:-}"
+echo "  FEEDBACK_TEMPLATE_FILE=${FEEDBACK_TEMPLATE_FILE:-}"
 echo "  ppo_clip=false (no PPO-clipped SDPO distillation clipping)"
 
 export VLLM_ATTENTION_BACKEND="${VLLM_ATTENTION_BACKEND:-XFORMERS}"
@@ -112,6 +118,15 @@ if [[ "${TEACHER_REG}" == "ema" ]]; then
   EXTRA_ARGS+=(
     "actor_rollout_ref.actor.self_distillation.teacher_update_rate=${TEACHER_UPDATE_RATE}"
   )
+fi
+if [[ -n "${REPROMPT_TEMPLATE_FILE:-}" ]]; then
+  EXTRA_ARGS+=("actor_rollout_ref.actor.self_distillation.reprompt_template_file=${REPROMPT_TEMPLATE_FILE}")
+fi
+if [[ -n "${SOLUTION_TEMPLATE_FILE:-}" ]]; then
+  EXTRA_ARGS+=("actor_rollout_ref.actor.self_distillation.solution_template_file=${SOLUTION_TEMPLATE_FILE}")
+fi
+if [[ -n "${FEEDBACK_TEMPLATE_FILE:-}" ]]; then
+  EXTRA_ARGS+=("actor_rollout_ref.actor.self_distillation.feedback_template_file=${FEEDBACK_TEMPLATE_FILE}")
 fi
 
 cd "${PROJECT_ROOT}"

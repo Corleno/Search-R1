@@ -45,6 +45,9 @@ actor_rollout_ref:
       environment_feedback_only_without_solution: true
       ppo_clip: false
       debug_print_inputs: false
+      reprompt_template_file: null
+      solution_template_file: null
+      feedback_template_file: null
       reprompt_template: |-
         {prompt}{solution}{feedback}
 

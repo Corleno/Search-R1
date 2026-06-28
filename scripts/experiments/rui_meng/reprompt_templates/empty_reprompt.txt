@@ -1,0 +1,3 @@
+{prompt}
+
+Correctly solve the original question.
