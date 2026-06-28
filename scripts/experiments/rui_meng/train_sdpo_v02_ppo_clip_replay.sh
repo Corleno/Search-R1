@@ -25,6 +25,7 @@ set -euo pipefail
 #   DATA_DIR, WAND_PROJECT, BASE_MODEL, EXPERIMENT_NAME
 #   TEACHER_REG — self-distillation teacher: actor | ema | ref (default actor)
 #   CLIP_RATIO — PPO clip epsilon for SDPO distillation (default 0.2; uses actor.clip_ratio)
+#   TOTAL_TRAINING_STEPS — max training steps (default 200)
 #   RETRIEVER_URL — full retrieve endpoint (default http://127.0.0.1:8000/retrieve)
 #   TRAIN_REPLAY_DIR — default: res/train_replays/${EXPERIMENT_NAME} (writes step_NNNN.jsonl per step)
 #   TMPDIR, PYTORCH_CUDA_ALLOC_CONF, VLLM_ATTENTION_BACKEND
@@ -68,6 +69,7 @@ BASE_MODEL="${BASE_MODEL:-Qwen/Qwen2.5-3B}"
 EXPERIMENT_NAME="${EXPERIMENT_NAME:-nq_sdpo-qwen2.5-3b-em-ppoclip-replay}"
 TEACHER_REG="${TEACHER_REG:-actor}"
 CLIP_RATIO="${CLIP_RATIO:-0.2}"
+TOTAL_TRAINING_STEPS="${TOTAL_TRAINING_STEPS:-200}"
 RETRIEVER_URL="${RETRIEVER_URL:-http://127.0.0.1:8000/retrieve}"
 TRAIN_REPLAY_DIR="${TRAIN_REPLAY_DIR:-res/train_replays/${EXPERIMENT_NAME}}"
 
@@ -76,6 +78,7 @@ echo "  TRAIN_FILE=${TRAIN_FILE}"
 echo "  VAL_FILE=${VAL_FILE}"
 echo "  BASE_MODEL=${BASE_MODEL}"
 echo "  EXPERIMENT_NAME=${EXPERIMENT_NAME}"
+echo "  TOTAL_TRAINING_STEPS=${TOTAL_TRAINING_STEPS}"
 echo "  TRAIN_REPLAY_DIR=${TRAIN_REPLAY_DIR}"
 echo "  ppo_clip=true (PPO-clipped SDPO distillation)"
 echo "  clip_ratio=${CLIP_RATIO}"
@@ -147,7 +150,7 @@ PYTHONUNBUFFERED=1 python3 -m verl.trainer.main_ppo \
     trainer.project_name="${WAND_PROJECT}" \
     trainer.experiment_name="${EXPERIMENT_NAME}" \
     trainer.total_epochs=15 \
-    trainer.total_training_steps=1005 \
+    trainer.total_training_steps="${TOTAL_TRAINING_STEPS}" \
     trainer.default_local_dir="verl_checkpoints/${EXPERIMENT_NAME}" \
     do_search=true \
     max_turns=4 \
