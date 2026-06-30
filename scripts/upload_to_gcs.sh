@@ -16,6 +16,7 @@
 #   --subpath PATH       Sync PATH under both dirs (e.g. my_experiment or nq_sdpo-Qwen/run1)
 #   --dry-run            Print what would be uploaded without copying
 #   --delete             Remove GCS objects that no longer exist locally
+#   --force              Upload even when matching paths already exist on GCS
 #   -h, --help           Show this help
 #
 # Environment variables:
@@ -37,6 +38,7 @@ UPLOAD_REPLAYS=1
 SUBPATH=""
 DRY_RUN=0
 DELETE=0
+FORCE=0
 
 usage() {
   cat <<EOF
@@ -53,6 +55,7 @@ Options:
   --subpath PATH       Sync only PATH under each selected directory
   --dry-run            Print planned uploads without copying
   --delete             Delete remote files missing locally (use with care)
+  --force              Upload even when matching paths already exist on GCS
   -h, --help           Show this help
 
 Environment variables:
@@ -86,6 +89,10 @@ while [[ $# -gt 0 ]]; do
       DELETE=1
       shift
       ;;
+    --force)
+      FORCE=1
+      shift
+      ;;
     -h|--help)
       usage
       exit 0
@@ -113,6 +120,79 @@ if [[ "$DELETE" -eq 1 ]]; then
   RSYNC_OPTS+=(-d)
 fi
 
+gcs_has_objects() {
+  local gcs_uri="${1%/}/"
+  gsutil ls "$gcs_uri" >/dev/null 2>&1
+}
+
+check_gcs_conflicts() {
+  local label="$1"
+  local src_root="$2"
+  local gcs_subdir="$3"
+
+  local src="$src_root"
+  if [[ -n "$SUBPATH" ]]; then
+    src="$src_root/$SUBPATH"
+  fi
+
+  if [[ ! -d "$src" ]]; then
+    return 0
+  fi
+
+  local dst_base="${GCS_PREFIX}/${gcs_subdir}"
+  local -a conflicts=()
+  local -a conflict_locals=()
+  local -a conflict_uris=()
+
+  if [[ -n "$SUBPATH" ]]; then
+    local dst="${dst_base}/${SUBPATH}"
+    if gcs_has_objects "$dst"; then
+      conflicts+=("$SUBPATH")
+      conflict_locals+=("$src")
+      conflict_uris+=("$dst")
+    fi
+  else
+    local entry name dst
+    for entry in "$src"/*; do
+      [[ -e "$entry" ]] || continue
+      name="${entry##*/}"
+      dst="${dst_base}/${name}"
+      if gcs_has_objects "$dst"; then
+        conflicts+=("$name")
+        conflict_locals+=("$entry")
+        conflict_uris+=("$dst")
+      fi
+    done
+  fi
+
+  if [[ ${#conflicts[@]} -eq 0 ]]; then
+    return 0
+  fi
+
+  echo "" >&2
+  echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" >&2
+  echo "!! ALARM: local $label already exist on GCS (upload will merge/overwrite):" >&2
+  local i
+  for i in "${!conflicts[@]}"; do
+    echo "!!   local:  ${conflict_locals[$i]}" >&2
+    echo "!!   remote: ${conflict_uris[$i]}" >&2
+  done
+  echo "!! Use --force to skip this prompt, or --dry-run to preview only." >&2
+  echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" >&2
+  echo "" >&2
+
+  if [[ "$DRY_RUN" -eq 1 || "$FORCE" -eq 1 ]]; then
+    return 0
+  fi
+
+  local reply
+  read -r -p "Continue upload anyway? [y/N] " reply </dev/tty
+  if [[ ! "$reply" =~ ^[Yy]$ ]]; then
+    echo "Aborted." >&2
+    exit 1
+  fi
+}
+
 sync_dir() {
   local label="$1"
   local src_root="$2"
@@ -132,6 +212,8 @@ sync_dir() {
   if [[ -n "$SUBPATH" ]]; then
     dst="${dst}/${SUBPATH}"
   fi
+
+  check_gcs_conflicts "$label" "$src_root" "$gcs_subdir"
 
   echo "==> Syncing $label"
   echo "    Local:  $src"
