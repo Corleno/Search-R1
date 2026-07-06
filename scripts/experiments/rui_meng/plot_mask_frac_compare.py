@@ -17,7 +17,12 @@ DEFAULT_OUTPUT_DIR = os.path.join(REPO_ROOT, "res", "train_replay_analysis", "co
 DEFAULT_EXPERIMENTS = (
     (
         "fcsd",
-        os.path.join(REPO_ROOT, "res", "train_replay_analysis", "exp_sdpo_searchr1_0620"),
+        os.path.join(
+            REPO_ROOT,
+            "res",
+            "train_replay_analysis",
+            "nq_sdpo-qwen2.5-3b-em-noclip-replay",
+        ),
     ),
     (
         "fcsd-ppo",
@@ -61,14 +66,21 @@ def extract_mask_series(
     summary: dict,
     step_min: Optional[int],
     step_max: Optional[int],
+    step_stride: int = 1,
 ) -> Tuple[List[int], List[float]]:
     steps: List[int] = []
     values: List[float] = []
+    base_step: Optional[int] = None
     for row in summary.get("per_step", []):
         step = int(row["step"])
         if step_min is not None and step < step_min:
             continue
         if step_max is not None and step > step_max:
+            continue
+        if base_step is None:
+            base_step = step
+        stride_origin = step_min if step_min is not None else base_step
+        if step_stride > 1 and (step - stride_origin) % step_stride != 0:
             continue
         steps.append(step)
         values.append(float(row["mask_frac"]))
@@ -101,12 +113,13 @@ def write_compare_csv(
     experiments: Sequence[Tuple[str, dict]],
     step_min: Optional[int],
     step_max: Optional[int],
+    step_stride: int,
 ) -> None:
     fieldnames = ["step"] + [f"{label}_mask_frac" for label, _ in experiments]
     rows_by_step: Dict[int, Dict[str, float]] = {}
 
     for label, summary in experiments:
-        steps, values = extract_mask_series(summary, step_min, step_max)
+        steps, values = extract_mask_series(summary, step_min, step_max, step_stride)
         for step, value in zip(steps, values):
             rows_by_step.setdefault(step, {})[f"{label}_mask_frac"] = value
 
@@ -125,12 +138,15 @@ def plot_compare(
     rolling_window: int,
     plot_x_min: Optional[int],
     plot_x_max: Optional[int],
+    step_stride: int,
     show_rolling: bool,
 ) -> None:
     fig, ax = plt.subplots(figsize=(10, 5))
 
     for idx, (label, summary) in enumerate(experiments):
-        steps, values = extract_mask_series(summary, plot_x_min, plot_x_max)
+        steps, values = extract_mask_series(
+            summary, plot_x_min, plot_x_max, step_stride
+        )
         if not steps:
             continue
         style = EXPERIMENT_STYLES[idx % len(EXPERIMENT_STYLES)]
@@ -203,8 +219,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--plot-x-max",
         type=int,
-        default=200,
-        help="Maximum training step for x-axis (default: 200)",
+        default=100,
+        help="Maximum training step for x-axis (default: 100)",
+    )
+    parser.add_argument(
+        "--step-stride",
+        type=int,
+        default=5,
+        help="Plot every Nth training step (default: 5)",
     )
     parser.add_argument(
         "--no-plot-xlim",
@@ -238,9 +260,10 @@ def main() -> None:
         args.rolling_window,
         plot_x_min,
         plot_x_max,
+        args.step_stride,
         args.show_rolling,
     )
-    write_compare_csv(csv_path, loaded, plot_x_min, plot_x_max)
+    write_compare_csv(csv_path, loaded, plot_x_min, plot_x_max, args.step_stride)
 
     print(f"Wrote comparison plot: {plot_path}")
     print(f"Wrote comparison CSV: {csv_path}")
