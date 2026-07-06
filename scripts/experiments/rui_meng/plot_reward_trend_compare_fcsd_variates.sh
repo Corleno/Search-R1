@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Plot training replay mask fraction (effective sample ratio) for both experiments.
+# Plot training replay pass rates for both SDPO experiments on one figure.
 #
 # Usage (from repo root):
-#   bash scripts/experiments/rui_meng/plot_mask_frac_compare.sh
+#   bash scripts/experiments/rui_meng/plot_reward_trend_compare_fcsd_variates.sh
 #
 # Prerequisites:
 #   Run analyze_reward_trend.sh for each experiment first so reward_summary.json exists.
@@ -45,6 +45,6 @@ if [[ -n "${NO_PLOT_XLIM:-}" ]]; then
   ARGS+=(--no-plot-xlim)
 fi
 
-python3 "${SCRIPT_DIR}/plot_mask_frac_compare.py" "${ARGS[@]}"
+python3 "${SCRIPT_DIR}/plot_reward_trend_compare.py" "${ARGS[@]}"
 
-echo "Mask fraction comparison plot complete. Outputs in ${OUTPUT_DIR}"
+echo "Comparison plot complete. Outputs in ${OUTPUT_DIR}"
