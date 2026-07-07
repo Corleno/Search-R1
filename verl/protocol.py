@@ -101,6 +101,25 @@ def list_of_dict_to_dict_of_list(list_of_dict: list[dict]):
     return output
 
 
+def _align_per_sample_meta_info(meta_info: dict, indices, batch_size: int) -> dict:
+    """Index per-sample meta_info fields to stay aligned with batch rows."""
+    if not meta_info:
+        return meta_info
+
+    if isinstance(indices, torch.Tensor):
+        indices_np = indices.detach().cpu().numpy()
+    else:
+        indices_np = np.asarray(indices)
+
+    aligned = dict(meta_info)
+    for key, value in meta_info.items():
+        if isinstance(value, list) and len(value) == batch_size:
+            aligned[key] = [value[int(i)] for i in indices_np]
+        elif isinstance(value, np.ndarray) and value.shape[0] == batch_size:
+            aligned[key] = value[indices_np]
+    return aligned
+
+
 def fold_batch_dim(data: 'DataProto', new_batch_size):
     """
     Fold a batch dim from [bsz, xxx] into [new_bsz, bsz // new_bsz, xxx]
@@ -546,15 +565,19 @@ class DataProto:
         indices_np = indices.detach().numpy()
         batch = self.batch[indices]
         non_tensor_batch = {key: val[indices_np] for key, val in self.non_tensor_batch.items()}
-        return DataProto(batch=batch, non_tensor_batch=non_tensor_batch, meta_info=self.meta_info)
+        batch_size = self.batch.batch_size[0]
+        meta_info = _align_per_sample_meta_info(self.meta_info, indices_np, batch_size)
+        return DataProto(batch=batch, non_tensor_batch=non_tensor_batch, meta_info=meta_info)
 
     def reorder(self, indices):
         """
         Note that this operation is in-place
         """
         indices_np = indices.detach().numpy()
+        batch_size = self.batch.batch_size[0]
         self.batch = self.batch[indices]
         self.non_tensor_batch = {key: val[indices_np] for key, val in self.non_tensor_batch.items()}
+        self.meta_info = _align_per_sample_meta_info(self.meta_info, indices_np, batch_size)
 
     def repeat(self, repeat_times=2, interleave=True):
         """
