@@ -237,7 +237,7 @@ def plot_reward_trend(
     fig, axes = plt.subplots(2, 1, figsize=(12, 8), sharex=True)
 
     ax = axes[0]
-    ax.plot(steps, mean_scores, marker="o", markersize=3, linewidth=1.2, label="average score")
+    ax.plot(steps, mean_scores, marker="o", markersize=3, linewidth=1.2, label="average reward")
     ax.plot(
         steps,
         rolling,
@@ -262,14 +262,14 @@ def plot_reward_trend(
     ax = axes[1]
     mask_fracs = [stats.mask_frac for stats in per_step]
     mean_turns = [stats.turns_sum / stats.count if stats.count else 0.0 for stats in per_step]
-    ax.plot(steps, mask_fracs, marker="o", markersize=3, color="tab:orange")
+    ax.plot(steps, mask_fracs, marker="o", markersize=3, color="tab:orange", label="effective sample ratio")
     ax.set_xlabel("Training step")
     ax.set_ylabel("Ratio of effective samples", color="tab:orange")
     ax.tick_params(axis="y", labelcolor="tab:orange")
     ax.grid(True, alpha=0.3)
 
     ax2 = ax.twinx()
-    ax2.plot(steps, mean_turns, color="tab:green", linewidth=1.2)
+    ax2.plot(steps, mean_turns, color="tab:green", linewidth=1.2, label="average number of conversation turns")
     ax2.set_ylabel("Average number of conversation turns", color="tab:green")
     ax2.tick_params(axis="y", labelcolor="tab:green")
 
