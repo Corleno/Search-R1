@@ -41,7 +41,7 @@ Core analyzer. Reads `step_*.jsonl` under a replay dir and writes:
 
 ### `analyze_reward_trend_nq_sdpo_qwen25_3b_em_replay.sh`
 
-Convenience wrapper for the NQ SDPO Qwen2.5-3B EM replay family.
+Convenience wrapper for the NQ SDPO Qwen2.5-3B EM replay family (and related MOPD runs).
 
 ```bash
 bash scripts/experiments/rui_meng/analyze_reward_trend_nq_sdpo_qwen25_3b_em_replay.sh [VARIANT]
@@ -53,12 +53,14 @@ bash scripts/experiments/rui_meng/analyze_reward_trend_nq_sdpo_qwen25_3b_em_repl
 | `ema` | `nq_sdpo-qwen2.5-3b-em-noclip-replay-ema` |
 | `ref` | `nq_sdpo-qwen2.5-3b-em-noclip-replay-ref` |
 | `ppo` | `nq_sdpo-qwen2.5-3b-em-ppoclip-replay` |
+| `mopd` | `sdpo_v02_noclip_replay_ref_qwen2.5-3b-qwen2.5-7b-instruct` |
+| `fs_mopd` | `sdpo_v02_noclip_replay_ref_qwen2.5-3b-qwen2.5-7b-instruct-empty-reprompt` |
 
 Analysis lands in `res/train_replay_analysis/<same-name>/`.
 
 ```bash
 # Analyze all variants used by the compare plots
-for v in base ema ref ppo; do
+for v in base ema ref ppo mopd fs_mopd; do
   bash scripts/experiments/rui_meng/analyze_reward_trend_nq_sdpo_qwen25_3b_em_replay.sh "$v"
 done
 ```
@@ -116,7 +118,18 @@ Defaults:
 - **Experiments:** `base`, `ema`, `ref`
 - **Output:** `res/train_replay_analysis/compare/base-ema-ref/`
 
-### Shared env overrides (both wrappers)
+### Wrapper: MOPD variants (`mopd` / `fs_mopd`)
+
+```bash
+bash scripts/experiments/rui_meng/plot_reward_trend_compare_mopd_variates.sh
+```
+
+Defaults:
+
+- **Experiments:** `mopd` vs `fs_mopd` (empty-reprompt)
+- **Output:** `res/train_replay_analysis/compare/mopd-fs_mopd/`
+
+### Shared env overrides (all wrappers)
 
 ```bash
 OUTPUT_DIR=... EXPERIMENTS="a=dir_a,b=dir_b" \
@@ -176,4 +189,13 @@ for v in base ema ref; do
   bash scripts/experiments/rui_meng/analyze_reward_trend_nq_sdpo_qwen25_3b_em_replay.sh "$v"
 done
 bash scripts/experiments/rui_meng/plot_reward_trend_compare_teacher_variates.sh
+```
+
+**MOPD vs empty-reprompt (`fs_mopd`):**
+
+```bash
+for v in mopd fs_mopd; do
+  bash scripts/experiments/rui_meng/analyze_reward_trend_nq_sdpo_qwen25_3b_em_replay.sh "$v"
+done
+bash scripts/experiments/rui_meng/plot_reward_trend_compare_mopd_variates.sh
 ```

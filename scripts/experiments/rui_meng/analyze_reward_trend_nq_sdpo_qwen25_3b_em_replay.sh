@@ -7,19 +7,23 @@ set -euo pipefail
 #   bash scripts/experiments/rui_meng/analyze_reward_trend_nq_sdpo_qwen25_3b_em_replay.sh [VARIANT]
 #
 # VARIANT selects the experiment (default: base):
-#   base  — nq_sdpo-qwen2.5-3b-em-noclip-replay
-#   ref   — nq_sdpo-qwen2.5-3b-em-noclip-replay-ref
-#   ema   — nq_sdpo-qwen2.5-3b-em-noclip-replay-ema
-#   ppo   — nq_sdpo-qwen2.5-3b-em-ppoclip-replay
+#   base     — nq_sdpo-qwen2.5-3b-em-noclip-replay
+#   ref      — nq_sdpo-qwen2.5-3b-em-noclip-replay-ref
+#   ema      — nq_sdpo-qwen2.5-3b-em-noclip-replay-ema
+#   ppo      — nq_sdpo-qwen2.5-3b-em-ppoclip-replay
+#   mopd     — sdpo_v02_noclip_replay_ref_qwen2.5-3b-qwen2.5-7b-instruct
+#   fs_mopd  — sdpo_v02_noclip_replay_ref_qwen2.5-3b-qwen2.5-7b-instruct-empty-reprompt
 #
 # Examples:
 #   bash .../analyze_reward_trend_nq_sdpo_qwen25_3b_em_replay.sh
 #   bash .../analyze_reward_trend_nq_sdpo_qwen25_3b_em_replay.sh ref
 #   bash .../analyze_reward_trend_nq_sdpo_qwen25_3b_em_replay.sh ppo
+#   bash .../analyze_reward_trend_nq_sdpo_qwen25_3b_em_replay.sh mopd
+#   bash .../analyze_reward_trend_nq_sdpo_qwen25_3b_em_replay.sh fs_mopd
 #   VARIANT=ema bash .../analyze_reward_trend_nq_sdpo_qwen25_3b_em_replay.sh
 #
 # Optional environment overrides:
-#   VARIANT         — same as positional argument (base | ref | ema | ppo)
+#   VARIANT         — same as positional argument (base | ref | ema | ppo | mopd | fs_mopd)
 #   REPLAY_DIR      — override replay directory (default derived from VARIANT)
 #   OUTPUT_DIR      — override output directory (default derived from VARIANT)
 #   STEP_MIN        — minimum step (inclusive)
@@ -50,12 +54,18 @@ case "${VARIANT}" in
   ppo)
     EXPERIMENT_NAME="nq_sdpo-qwen2.5-3b-em-ppoclip-replay"
     ;;
+  mopd)
+    EXPERIMENT_NAME="sdpo_v02_noclip_replay_ref_qwen2.5-3b-qwen2.5-7b-instruct"
+    ;;
+  fs_mopd)
+    EXPERIMENT_NAME="sdpo_v02_noclip_replay_ref_qwen2.5-3b-qwen2.5-7b-instruct-empty-reprompt"
+    ;;
   -h|--help|help)
-    sed -n '2,21p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+    sed -n '2,25p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
     exit 0
     ;;
   *)
-    echo "Unknown VARIANT: ${VARIANT} (expected base, ref, ema, or ppo)" >&2
+    echo "Unknown VARIANT: ${VARIANT} (expected base, ref, ema, ppo, mopd, or fs_mopd)" >&2
     exit 1
     ;;
 esac
