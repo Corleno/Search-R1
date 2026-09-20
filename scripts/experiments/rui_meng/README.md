@@ -9,11 +9,12 @@ Run all commands from the **repo root**.
 ```
 train_replays/*.jsonl
         │
-        ▼  analyze_reward_trend_*.sh
-res/train_replay_analysis/<exp>/reward_summary.json
-        │
-        ├──► plot_reward_trend_compare_*.sh  → reward_trend_compare.{png,csv}
-        └──► plot_mask_frac_compare.sh       → mask_frac_compare.{png,csv}
+        ├──► analyze_reward_trend_*.sh  → reward_summary.json / reward_trend.png
+        └──► analyze_collapse_*.sh      → collapse_summary.json / collapse_trend.png
+                    │
+                    ▼
+        plot_reward_trend_compare_*.sh  → reward_trend_compare.{png,csv}
+        plot_mask_frac_compare.sh       → mask_frac_compare.{png,csv}
 ```
 
 1. **Sync replays** (if needed):
@@ -22,7 +23,7 @@ res/train_replay_analysis/<exp>/reward_summary.json
 bash scripts/sync_train_replays_from_gcs.sh --subpath nq_sdpo-qwen2.5-3b-em-noclip-replay
 ```
 
-2. **Analyze** each experiment so `reward_summary.json` exists.
+2. **Analyze** each experiment so `reward_summary.json` exists (and optionally run collapse analysis).
 3. **Plot** comparisons across experiments.
 
 ---
@@ -66,6 +67,40 @@ done
 ```
 
 Useful env overrides: `REPLAY_DIR`, `OUTPUT_DIR`, `STEP_MIN`, `STEP_MAX`, `STEP_STRIDE`, `PLOT_X_MIN`, `PLOT_X_MAX`.
+
+---
+
+## 1b. Analyze training collapse
+
+### `analyze_collapse.py`
+
+Offline collapse analyzer. Reads the same `step_*.jsonl` replays and measures:
+
+| Metric family | What it shows |
+|---------------|---------------|
+| Trajectory similarity | Mean pairwise char-ngram Jaccard across questions; high-sim pair fraction; answer mode share |
+| Query diversity | Search rate, first-query entropy / unique ratio, degenerate-query rate |
+| Input sensitivity | Question↔query / question↔answer token overlap; same−diff question traj gap (mean traj-sim on same-question rollout pairs minus different-question pairs) |
+
+Parsing strips `<information>` blocks and neutralizes env boilerplate that embeds literal `<search>…</search>` tags (avoids false `"and"` queries).
+
+| Output | Description |
+|--------|-------------|
+| `collapse_summary.json` | Per-step metrics + sampling config |
+| `collapse_metrics.csv` | Flat table of the same metrics |
+| `collapse_trend.png` | Three-panel trend: similarity, query diversity, input sensitivity |
+
+### `analyze_collapse_nq_sdpo_qwen25_3b_em_replay.sh`
+
+Defaults to `nq_sdpo-qwen2.5-3b-em-noclip-replay`:
+
+```bash
+bash scripts/experiments/rui_meng/analyze_collapse_nq_sdpo_qwen25_3b_em_replay.sh
+```
+
+Useful env overrides: `REPLAY_DIR`, `OUTPUT_DIR`, `STEP_MIN`, `STEP_MAX`, `STEP_STRIDE`, `SAMPLE_SIZE`, `PAIR_SAMPLE_SIZE`, `SEED`, `PLOT_X_MIN`, `PLOT_X_MAX`, `NO_PLOT_XLIM=1`, `PYTHON`.
+
+Outputs land in `res/train_replay_analysis/nq_sdpo-qwen2.5-3b-em-noclip-replay/`.
 
 ---
 
@@ -180,6 +215,12 @@ bash scripts/experiments/rui_meng/analyze_reward_trend_nq_sdpo_qwen25_3b_em_repl
 bash scripts/experiments/rui_meng/analyze_reward_trend_nq_sdpo_qwen25_3b_em_replay.sh ppo
 bash scripts/experiments/rui_meng/plot_reward_trend_compare_fcsd_variates.sh
 bash scripts/experiments/rui_meng/plot_mask_frac_compare.sh
+```
+
+**Collapse analysis (noclip base run):**
+
+```bash
+bash scripts/experiments/rui_meng/analyze_collapse_nq_sdpo_qwen25_3b_em_replay.sh
 ```
 
 **Teacher variant comparison:**
