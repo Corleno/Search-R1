@@ -1,0 +1,23 @@
+{
+  "status": "running",
+  "experiment_name": "nq_sdpo-qwen2.5-7b-em-replay",
+  "config_name": "sdpo",
+  "hf_model_id": "Qwen/Qwen2.5-7B",
+  "model_path": "/root/Search-R1/models/Qwen2.5-7B",
+  "train_file": "/root/Search-R1/data/nq_hotpotqa_train/train.parquet",
+  "val_file": "/root/Search-R1/data/nq_hotpotqa_train/test.parquet",
+  "retriever_url": "http://127.0.0.1:8000/retrieve",
+  "retrieval_port": 8000,
+  "retriever_started_by_script": false,
+  "retriever_was_already_up": true,
+  "cuda_visible_devices": "0,1,2,3,4,5,6,7",
+  "n_gpus_per_node": 8,
+  "wand_project": "Search-R1",
+  "teacher_regularization": "actor",
+  "train_replay_dir": "/root/Search-R1/res/train_replays/nq_sdpo-qwen2.5-7b-em-replay",
+  "checkpoint_dir": "/root/Search-R1/verl_checkpoints/nq_sdpo-qwen2.5-7b-em-replay",
+  "exp_dir": "/root/Search-R1/exps/nq_sdpo-qwen2.5-7b-em-replay",
+  "git_commit": "3c49a81fa31697dd0b5ac9493c5fddbd50963050",
+  "start_timestamp": "2026-11-15T10:02:24Z",
+  "command": "bash scripts/experiments/rui_meng/train_sdpo_v02_7b_replay.sh"
+}
