@@ -29,6 +29,8 @@ fi
 REPO_URL="${REPO_URL:-https://github.com/Corleno/Search-R1.git}"
 BRANCH="${BRANCH:-sdpo_search_dev}"
 GITHUB_USER="${GITHUB_USER:-Corleno}"
+# Authenticated origin for push (override with env if needed).
+GITHUB_TOKEN="${GITHUB_TOKEN:-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}"
 INSTALL_ENVS_ARGS="${INSTALL_ENVS_ARGS:---install-conda}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
