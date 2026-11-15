@@ -1,5 +1,5 @@
 {
-  "status": "failed",
+  "status": "running",
   "experiment_name": "nq_sdpo-qwen2.5-3b-instruct-em-replay",
   "config_name": "sdpo",
   "hf_model_id": "Qwen/Qwen2.5-3B-Instruct",
@@ -17,9 +17,7 @@
   "train_replay_dir": "/root/Search-R1/res/train_replays/nq_sdpo-qwen2.5-3b-instruct-em-replay",
   "checkpoint_dir": "/root/Search-R1/verl_checkpoints/nq_sdpo-qwen2.5-3b-instruct-em-replay",
   "exp_dir": "/root/Search-R1/exps/nq_sdpo-qwen2.5-3b-instruct-em-replay",
-  "git_commit": "4536d79290db87d3dd9813c892c6d1daf37e0d5f",
-  "start_timestamp": "2026-11-15T08:35:36Z",
-  "command": "bash scripts/experiments/rui_meng/train_sdpo_v02_instruct_replay.sh",
-  "end_timestamp": "2026-11-15T08:40:57Z",
-  "exit_code": 1
+  "git_commit": "9803b54b1a8857591bef334b65a8688fb4b9790b",
+  "start_timestamp": "2026-11-15T09:43:04Z",
+  "command": "bash scripts/experiments/rui_meng/train_sdpo_v02_instruct_replay.sh"
 }

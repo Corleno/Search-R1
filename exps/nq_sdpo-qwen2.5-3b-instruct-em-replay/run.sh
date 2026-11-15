@@ -50,8 +50,29 @@ export TMPDIR="${TMPDIR:-/tmp}"
 export PYTORCH_CUDA_ALLOC_CONF="${PYTORCH_CUDA_ALLOC_CONF:-expandable_segments:True}"
 export OMP_NUM_THREADS="${OMP_NUMBER_THREADS:-${OMP_NUM_THREADS:-1}}"
 export VLLM_ATTENTION_BACKEND="${VLLM_ATTENTION_BACKEND:-XFORMERS}"
-export NCCL_NET_PLUGIN=dummy_name
 export PYTHONUNBUFFERED=1
+
+# A3+/TCPXO hosts put NCCL 2.28 + net/tuner shims on LD_LIBRARY_PATH. PyTorch
+# 2.4 bundles NCCL 2.20.5; loading the host net plugin into that NCCL SIGSEGVs
+# during the first real collective (FSDP wrap in ref/actor init_model).
+# Prefer torch's libnccl, disable host net/shim plugins, force single-node P2P.
+_TORCH_NCCL_LIB="${CONDA_PREFIX:-/root/miniconda3/envs/searchr1}/lib/python3.9/site-packages/nvidia/nccl/lib"
+if [[ ! -d "${_TORCH_NCCL_LIB}" ]]; then
+  _TORCH_NCCL_LIB="/root/miniconda3/envs/searchr1/lib/python3.9/site-packages/nvidia/nccl/lib"
+fi
+if [[ -d "${_TORCH_NCCL_LIB}" ]]; then
+  export LD_LIBRARY_PATH="${_TORCH_NCCL_LIB}:${LD_LIBRARY_PATH:-/usr/local/nvidia/lib64}"
+fi
+export NCCL_NET_PLUGIN="${NCCL_NET_PLUGIN:-none}"
+export NCCL_SHIMNET_SHIM_LAYERS="${NCCL_SHIMNET_SHIM_LAYERS:-UNUSED}"
+export NCCL_IB_DISABLE="${NCCL_IB_DISABLE:-1}"
+export NCCL_SOCKET_IFNAME="${NCCL_SOCKET_IFNAME:-lo}"
+unset NCCL_TUNER_PLUGIN || true
+unset NCCL_TUNER_CONFIG_PATH || true
+# Host image often sets NCCL_PROTO=Simple while guest checker wants Simple,LL128;
+# with shim disabled this only needs to be a valid proto for torch's NCCL.
+export NCCL_PROTO="${NCCL_PROTO:-Simple}"
+export NCCL_ALGO="${NCCL_ALGO:-Ring}"
 
 DATA_DIR="${DATA_DIR:-./data/nq_hotpotqa_train}"
 TRAIN_FILE="${DATA_DIR}/train.parquet"

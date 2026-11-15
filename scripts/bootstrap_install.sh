@@ -20,6 +20,12 @@
 #
 set -euo pipefail
 
+# Search-R1 public WandB (wandb.ai). Train scripts read WANDB_API_KEY_SEARCH_R1.
+export WANDB_API_KEY_SEARCH_R1="${WANDB_API_KEY_SEARCH_R1:-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}"
+if ! grep -qF 'WANDB_API_KEY_SEARCH_R1' "${HOME}/.bashrc" 2>/dev/null; then
+  echo "export WANDB_API_KEY_SEARCH_R1='${WANDB_API_KEY_SEARCH_R1}'" >> "${HOME}/.bashrc"
+fi
+
 REPO_URL="${REPO_URL:-https://github.com/Corleno/Search-R1.git}"
 BRANCH="${BRANCH:-sdpo_search_dev}"
 GITHUB_USER="${GITHUB_USER:-Corleno}"

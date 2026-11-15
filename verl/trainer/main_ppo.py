@@ -105,7 +105,25 @@ import hydra
 def main(config):
     if not ray.is_initialized():
         # this is for local ray cluster
-        ray.init(runtime_env={'env_vars': {'TOKENIZERS_PARALLELISM': 'true', 'NCCL_DEBUG': 'WARN'}})
+        # Forward NCCL/library path so Ray workers don't pick up host TCPXO
+        # shims that SIGSEGV against PyTorch's bundled NCCL (see train scripts).
+        import os
+        _ray_env = {
+            'TOKENIZERS_PARALLELISM': 'true',
+            'NCCL_DEBUG': os.environ.get('NCCL_DEBUG', 'WARN'),
+        }
+        for _k in (
+            'LD_LIBRARY_PATH',
+            'NCCL_NET_PLUGIN',
+            'NCCL_SHIMNET_SHIM_LAYERS',
+            'NCCL_IB_DISABLE',
+            'NCCL_SOCKET_IFNAME',
+            'NCCL_PROTO',
+            'NCCL_ALGO',
+        ):
+            if _k in os.environ:
+                _ray_env[_k] = os.environ[_k]
+        ray.init(runtime_env={'env_vars': _ray_env})
 
     ray.get(main_task.remote(config))
 
