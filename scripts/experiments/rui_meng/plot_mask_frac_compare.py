@@ -16,7 +16,7 @@ REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", 
 DEFAULT_OUTPUT_DIR = os.path.join(REPO_ROOT, "res", "train_replay_analysis", "compare")
 DEFAULT_EXPERIMENTS = (
     (
-        "fcsd",
+        "fa-sd",
         os.path.join(
             REPO_ROOT,
             "res",
@@ -25,7 +25,7 @@ DEFAULT_EXPERIMENTS = (
         ),
     ),
     (
-        "fcsd-ppo",
+        "fa-sd-ppo",
         os.path.join(
             REPO_ROOT,
             "res",

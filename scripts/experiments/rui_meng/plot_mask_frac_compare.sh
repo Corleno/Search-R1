@@ -27,7 +27,7 @@ ROLLING_WINDOW="${ROLLING_WINDOW:-10}"
 PLOT_X_MIN="${PLOT_X_MIN:-0}"
 PLOT_X_MAX="${PLOT_X_MAX:-200}"
 STEP_STRIDE="${STEP_STRIDE:-5}"
-EXPERIMENTS="${EXPERIMENTS:-fcsd=res/train_replay_analysis/nq_sdpo-qwen2.5-3b-em-noclip-replay,fcsd-ppo=res/train_replay_analysis/nq_sdpo-qwen2.5-3b-em-ppoclip-replay}"
+EXPERIMENTS="${EXPERIMENTS:-fa-sd=res/train_replay_analysis/nq_sdpo-qwen2.5-3b-em-noclip-replay,fa-sd-ppo=res/train_replay_analysis/nq_sdpo-qwen2.5-3b-em-ppoclip-replay}"
 
 ARGS=(
   --output-dir "${OUTPUT_DIR}"

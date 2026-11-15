@@ -535,7 +535,7 @@ def plot_collapse_trend(
     plot_x_max: Optional[int],
 ) -> None:
     steps = [s.step for s in per_step]
-    fig, axes = plt.subplots(3, 1, figsize=(12, 10), sharex=True)
+    fig, axes = plt.subplots(1, 3, figsize=(18, 5), sharex=True)
 
     # Panel 1: trajectory similarity
     ax = axes[0]
@@ -554,6 +554,7 @@ def plot_collapse_trend(
         markersize=3,
         label="answer mode share",
     )
+    ax.set_xlabel("Training step")
     ax.set_ylabel("Similarity / share")
     ax.set_title("Trajectory similarity across questions")
     ax.grid(True, alpha=0.3)
@@ -569,6 +570,7 @@ def plot_collapse_trend(
         markersize=3,
         label="degenerate query rate",
     )
+    ax.set_xlabel("Training step")
     ax.set_ylabel("Rate")
     ax2 = ax.twinx()
     ax2.plot(
@@ -617,7 +619,8 @@ def plot_collapse_trend(
     ax.legend(loc="best", fontsize=8)
 
     if plot_x_min is not None and plot_x_max is not None:
-        axes[0].set_xlim(plot_x_min, plot_x_max)
+        for ax in axes:
+            ax.set_xlim(plot_x_min, plot_x_max)
 
     fig.tight_layout()
     fig.savefig(output_path, dpi=150)
