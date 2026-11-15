@@ -39,8 +39,10 @@ dependencies = [
     "pybind11",
     "ray",
     "tensordict",
-    "transformers<4.48",
-    "vllm<=0.6.3",
+    # Legacy Search-R1 stack: transformers<4.48 + vllm<=0.6.3 (env: searchr1).
+    # Qwen3.6 stack: transformers>=5.8 + vllm>=0.29 (env: searchr1-qwen36).
+    "transformers",
+    "vllm",
 ]
 
 # Optional dependencies (extras_require in setup.py)

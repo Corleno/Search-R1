@@ -118,6 +118,8 @@ class ActorRolloutRefWorker(Worker):
                                trust_remote_code=False):
         from verl.utils.model import print_model_size, update_model_config
         from verl.utils.torch_dtypes import PrecisionType
+        from verl.utils.qwen36 import (apply_token_id_overrides, get_tie_word_embeddings, is_qwen3_5_family,
+                                      resolve_attn_implementation)
         from transformers import AutoModelForCausalLM, AutoConfig
         from torch.distributed.fsdp import FullyShardedDataParallel as FSDP, ShardingStrategy, MixedPrecision
         from torch import optim
@@ -138,6 +140,12 @@ class ActorRolloutRefWorker(Worker):
         # override model kwargs
         actor_model_config = AutoConfig.from_pretrained(local_path, trust_remote_code=trust_remote_code)
 
+        # Qwen3.5/3.6 MoE checkpoints are multimodal ConditionalGeneration; RMPad is not supported yet.
+        if use_remove_padding and is_qwen3_5_family(actor_model_config):
+            if self.rank == 0:
+                print(f'Disabling use_remove_padding for model_type={actor_model_config.model_type}')
+            use_remove_padding = False
+
         if use_remove_padding:
             from verl.models.registry import check_model_support_rmpad
             check_model_support_rmpad(actor_model_config.model_type)
@@ -152,19 +160,25 @@ class ActorRolloutRefWorker(Worker):
             'pad_token_id': self.tokenizer.pad_token_id,
         }
         override_config_kwargs.update(override_model_config)
-        update_model_config(actor_model_config, override_config_kwargs=override_config_kwargs)
+        if is_qwen3_5_family(actor_model_config):
+            apply_token_id_overrides(actor_model_config, override_config_kwargs)
+        else:
+            update_model_config(actor_model_config, override_config_kwargs=override_config_kwargs)
         if self.rank == 0:
             print(f'Model config after override: {actor_model_config}')
 
         # NOTE(fix me): tie_word_embedding causes meta_tensor init to hang
-        init_context = get_init_weight_context_manager(use_meta_tensor=not actor_model_config.tie_word_embeddings)
+        tie_word_embeddings = get_tie_word_embeddings(actor_model_config)
+        init_context = get_init_weight_context_manager(use_meta_tensor=not tie_word_embeddings)
+        attn_implementation = resolve_attn_implementation(actor_model_config)
 
         with init_context(), warnings.catch_warnings():
             warnings.simplefilter("ignore")
+            # AutoModelForCausalLM maps qwen3_5_moe -> Qwen3_5MoeForCausalLM (text tower).
             actor_module = AutoModelForCausalLM.from_pretrained(pretrained_model_name_or_path=local_path,
                                                                 torch_dtype=torch_dtype,
                                                                 config=actor_model_config,
-                                                                attn_implementation='flash_attention_2',
+                                                                attn_implementation=attn_implementation,
                                                                 trust_remote_code=trust_remote_code)
             # some parameters may not in torch_dtype. TODO(zhangchi.usc1992) remove this after we switch to fsdp2
             actor_module.to(torch_dtype)
@@ -262,21 +276,48 @@ class ActorRolloutRefWorker(Worker):
             rollout_sharding_manager = BaseShardingManager()
             # TODO: a sharding manager that do nothing?
         elif self.config.rollout.name == 'vllm':
-            from verl.workers.rollout.vllm_rollout import vLLMRollout
-            from verl.workers.sharding_manager import FSDPVLLMShardingManager
+            from importlib.metadata import version as pkg_version
+            from packaging.version import Version
+
+            vllm_ver = pkg_version('vllm')
+            use_spmd = Version(vllm_ver.split('+')[0]) >= Version('0.7.0')
             log_gpu_memory_usage('Before building vllm rollout', logger=None)
-            rollout = vLLMRollout(actor_module=self.actor_module_fsdp,
-                                  config=self.config.rollout,
-                                  tokenizer=self.tokenizer,
-                                  model_hf_config=self.actor_model_config)
+            if use_spmd:
+                from verl.workers.rollout.vllm_rollout.vllm_rollout_spmd import vLLMRollout
+                from verl.workers.sharding_manager.fsdp_vllm_spmd import FSDPVLLMShardingManager
+                if torch.distributed.get_world_size() == 1:
+                    self.config.rollout.load_format = 'dummy_hf'
+                model_path = self.config.model.path
+                rollout = vLLMRollout(actor_module=self.actor_module_fsdp,
+                                      config=self.config.rollout,
+                                      tokenizer=self.tokenizer,
+                                      model_hf_config=self.actor_model_config,
+                                      model_path=model_path,
+                                      trust_remote_code=self.config.model.get('trust_remote_code', False),
+                                      device_mesh=rollout_device_mesh)
+                rollout_sharding_manager = FSDPVLLMShardingManager(
+                    module=self.actor_module_fsdp,
+                    inference_engine=rollout.inference_engine,
+                    model_config=self.actor_model_config,
+                    rollout_config=self.config.rollout,
+                    full_params='hf' in self.config.rollout.load_format,
+                    device_mesh=rollout_device_mesh,
+                    load_format=self.config.rollout.load_format)
+            else:
+                from verl.workers.rollout.vllm_rollout import vLLMRollout
+                from verl.workers.sharding_manager import FSDPVLLMShardingManager
+                rollout = vLLMRollout(actor_module=self.actor_module_fsdp,
+                                      config=self.config.rollout,
+                                      tokenizer=self.tokenizer,
+                                      model_hf_config=self.actor_model_config)
+                if torch.distributed.get_world_size() == 1:
+                    self.config.rollout.load_format = 'dummy_hf'
+                rollout_sharding_manager = FSDPVLLMShardingManager(module=self.actor_module_fsdp,
+                                                                   inference_engine=rollout.inference_engine,
+                                                                   model_config=self.actor_model_config,
+                                                                   full_params='hf' in self.config.rollout.load_format,
+                                                                   device_mesh=rollout_device_mesh)
             log_gpu_memory_usage('After building vllm rollout', logger=None)
-            if torch.distributed.get_world_size() == 1:
-                self.config.rollout.load_format = 'dummy_hf'
-            rollout_sharding_manager = FSDPVLLMShardingManager(module=self.actor_module_fsdp,
-                                                               inference_engine=rollout.inference_engine,
-                                                               model_config=self.actor_model_config,
-                                                               full_params='hf' in self.config.rollout.load_format,
-                                                               device_mesh=rollout_device_mesh)
             log_gpu_memory_usage('After building sharding manager', logger=None)
 
         return rollout, rollout_sharding_manager
@@ -291,6 +332,17 @@ class ActorRolloutRefWorker(Worker):
         override_model_config = OmegaConf.to_container(self.config.model.get('override_config', OmegaConf.create()))
 
         use_remove_padding = self.config.model.get('use_remove_padding', False)
+        # Peek config so Qwen3.5/3.6 MoE disables RMPad before actor/ref wiring.
+        try:
+            from transformers import AutoConfig
+            from verl.utils.qwen36 import is_qwen3_5_family
+            _peek = AutoConfig.from_pretrained(self.config.model.path,
+                                               trust_remote_code=self.config.model.get('trust_remote_code', False))
+            if use_remove_padding and is_qwen3_5_family(_peek):
+                use_remove_padding = False
+                self.config.model.use_remove_padding = False
+        except Exception:
+            pass
 
         if self._is_actor or self._is_rollout:
             # we need the model for actor and rollout

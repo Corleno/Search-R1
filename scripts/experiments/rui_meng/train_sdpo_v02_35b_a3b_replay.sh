@@ -53,30 +53,43 @@ N_GPUS_PER_NODE="${N_GPUS_PER_NODE:-${#_CVD_IDS[@]}}"
 export TMPDIR="${TMPDIR:-/tmp}"
 export PYTORCH_CUDA_ALLOC_CONF="${PYTORCH_CUDA_ALLOC_CONF:-expandable_segments:True}"
 export OMP_NUM_THREADS="${OMP_NUMBER_THREADS:-${OMP_NUM_THREADS:-1}}"
-export VLLM_ATTENTION_BACKEND="${VLLM_ATTENTION_BACKEND:-XFORMERS}"
+# vLLM 0.29 + Qwen3.6: do not force XFORMERS (legacy 0.6.3 workaround).
+unset VLLM_ATTENTION_BACKEND || true
 export PYTHONUNBUFFERED=1
+# Training env for Qwen3.6 (py3.11 / transformers 5.16 / vllm 0.29). Legacy 3B/7B stays on searchr1.
+TRAIN_CONDA_ENV="${TRAIN_CONDA_ENV:-searchr1-qwen36}"
 
-# A3+/TCPXO hosts put NCCL 2.28 + net/tuner shims on LD_LIBRARY_PATH. PyTorch
-# 2.4 bundles NCCL 2.20.5; loading the host net plugin into that NCCL SIGSEGVs
-# during the first real collective (FSDP wrap in ref/actor init_model).
-# Prefer torch's libnccl, disable host net/shim plugins, force single-node P2P.
-_TORCH_NCCL_LIB="${CONDA_PREFIX:-/root/miniconda3/envs/searchr1}/lib/python3.9/site-packages/nvidia/nccl/lib"
+# A3+/TCPXO hosts put NCCL 2.28 + net/tuner shims on LD_LIBRARY_PATH. Prefer the
+# active train env's bundled libnccl, disable host net/shim plugins, force P2P.
+_TORCH_NCCL_LIB="${CONDA_PREFIX:-/root/miniconda3/envs/${TRAIN_CONDA_ENV}}/lib/python3.11/site-packages/nvidia/nccl/lib"
 if [[ ! -d "${_TORCH_NCCL_LIB}" ]]; then
+  _TORCH_NCCL_LIB="/root/miniconda3/envs/${TRAIN_CONDA_ENV}/lib/python3.11/site-packages/nvidia/nccl/lib"
+fi
+if [[ ! -d "${_TORCH_NCCL_LIB}" ]]; then
+  # Fallback for legacy searchr1 (py3.9) if TRAIN_CONDA_ENV overridden.
   _TORCH_NCCL_LIB="/root/miniconda3/envs/searchr1/lib/python3.9/site-packages/nvidia/nccl/lib"
 fi
 if [[ -d "${_TORCH_NCCL_LIB}" ]]; then
   export LD_LIBRARY_PATH="${_TORCH_NCCL_LIB}:${LD_LIBRARY_PATH:-/usr/local/nvidia/lib64}"
 fi
-export NCCL_NET_PLUGIN="${NCCL_NET_PLUGIN:-none}"
-export NCCL_SHIMNET_SHIM_LAYERS="${NCCL_SHIMNET_SHIM_LAYERS:-UNUSED}"
-export NCCL_IB_DISABLE="${NCCL_IB_DISABLE:-1}"
-export NCCL_SOCKET_IFNAME="${NCCL_SOCKET_IFNAME:-lo}"
-unset NCCL_TUNER_PLUGIN || true
+# Force-override host TCPXO/FASTRAK NCCL settings (do NOT use ${VAR:-default} —
+# the image already exports NCCL_TUNER_PLUGIN=libnccl-tuner.so etc.).
+export NCCL_NET_PLUGIN=none
+export NCCL_SHIMNET_SHIM_LAYERS=UNUSED
+export NCCL_IB_DISABLE=1
+export NCCL_SOCKET_IFNAME=lo
+export NCCL_TUNER_PLUGIN=none
 unset NCCL_TUNER_CONFIG_PATH || true
+unset NCCL_FASTRAK_IFNAME NCCL_FASTRAK_CTRL_DEV NCCL_FASTRAK_USE_SNAP \
+      NCCL_FASTRAK_USE_LLCM NCCL_FASTRAK_LLCM_DEVICE_DIRECTORY \
+      NCCL_FASTRAK_PLUGIN_ACCEPT_TIMEOUT_MS NCCL_FASTRAK_NUM_FLOWS \
+      NCCL_FASTRAK_ENABLE_CONTROL_CHANNEL NCCL_FASTRAK_ENABLE_HOTPATH_LOGGING \
+      NCCL_SHIMNET_GUEST_CONFIG_CHECKER_CONFIG_FILE NCCL_LIB_DIR || true
 # Host image often sets NCCL_PROTO=Simple while guest checker wants Simple,LL128;
 # with shim disabled this only needs to be a valid proto for torch's NCCL.
-export NCCL_PROTO="${NCCL_PROTO:-Simple}"
-export NCCL_ALGO="${NCCL_ALGO:-Ring}"
+export NCCL_PROTO=Simple
+export NCCL_ALGO=Ring
+# Keep /usr/local/nvidia/lib64 for the CUDA driver; tuner is disabled via NCCL_TUNER_PLUGIN=none.
 
 DATA_DIR="${DATA_DIR:-./data/nq_hotpotqa_train}"
 TRAIN_FILE="${DATA_DIR}/train.parquet"
@@ -302,10 +315,10 @@ echo "    TRAIN_REPLAY_DIR=${TRAIN_REPLAY_DIR}"
 mkdir -p "${TRAIN_REPLAY_DIR}"
 
 # ---------------------------------------------------------------------------
-# 4) Train under searchr1
+# 4) Train under searchr1-qwen36 (Qwen3.6 / transformers 5.x / vLLM 0.29)
 # ---------------------------------------------------------------------------
 set +e
-conda run -n searchr1 --no-capture-output python3 -m verl.trainer.main_ppo \
+conda run -n "${TRAIN_CONDA_ENV}" --no-capture-output python3 -m verl.trainer.main_ppo \
     --config-name sdpo \
     algorithm.adv_estimator=grpo \
     data.train_files="${TRAIN_FILE}" \
@@ -322,7 +335,8 @@ conda run -n searchr1 --no-capture-output python3 -m verl.trainer.main_ppo \
     data.shuffle_train_dataloader=True \
     actor_rollout_ref.model.path="${MODEL_DIR}" \
     actor_rollout_ref.model.enable_gradient_checkpointing=true \
-    actor_rollout_ref.model.use_remove_padding=True \
+    actor_rollout_ref.model.use_remove_padding=False \
+    +actor_rollout_ref.model.trust_remote_code=True \
     actor_rollout_ref.actor.optim.lr=1e-6 \
     actor_rollout_ref.actor.optim.lr_warmup_steps_ratio=0.285 \
     actor_rollout_ref.actor.use_kl_loss=false \
@@ -335,6 +349,12 @@ conda run -n searchr1 --no-capture-output python3 -m verl.trainer.main_ppo \
     actor_rollout_ref.rollout.tensor_model_parallel_size=2 \
     actor_rollout_ref.rollout.name=vllm \
     actor_rollout_ref.rollout.gpu_memory_utilization=0.5 \
+    actor_rollout_ref.rollout.load_format=safetensors \
+    actor_rollout_ref.rollout.enforce_eager=True \
+    actor_rollout_ref.rollout.free_cache_engine=True \
+    +actor_rollout_ref.rollout.enable_chunked_prefill=True \
+    +actor_rollout_ref.rollout.max_model_len=4600 \
+    +actor_rollout_ref.rollout.language_model_only=True \
     actor_rollout_ref.rollout.n=1 \
     actor_rollout_ref.rollout.n_agent=5 \
     algorithm.no_think_rl=false \

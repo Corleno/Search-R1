@@ -1,0 +1,561 @@
+2026-11-15 11:03:19,982	WARNING authentication_token_setup.py:85 -- Token authentication is enabled for this Ray cluster. Set RAY_AUTH_MODE=disabled to opt out. For more information, see https://docs.ray.io/en/latest/ray-security/token-auth.html
+2026-11-15 11:03:23,297	INFO worker.py:2029 -- Started a local Ray instance. View the dashboard at [1m[32mhttp://127.0.0.1:8265 [39m[22m
+[36m(main_task pid=100437)[0m {'actor_rollout_ref': {'actor': {'calculate_entropy': True,
+[36m(main_task pid=100437)[0m                                  'clip_ratio': 0.2,
+[36m(main_task pid=100437)[0m                                  'entropy_coeff': 0.001,
+[36m(main_task pid=100437)[0m                                  'fsdp_config': {'fsdp_size': -1,
+[36m(main_task pid=100437)[0m                                                  'grad_offload': True,
+[36m(main_task pid=100437)[0m                                                  'optimizer_offload': True,
+[36m(main_task pid=100437)[0m                                                  'param_offload': True,
+[36m(main_task pid=100437)[0m                                                  'wrap_policy': {'min_num_params': 0}},
+[36m(main_task pid=100437)[0m                                  'grad_clip': 1.0,
+[36m(main_task pid=100437)[0m                                  'kl_loss_coef': 0.001,
+[36m(main_task pid=100437)[0m                                  'kl_loss_type': 'low_var_kl',
+[36m(main_task pid=100437)[0m                                  'optim': {'lr': 1e-06,
+[36m(main_task pid=100437)[0m                                            'lr_warmup_steps_ratio': 0.285,
+[36m(main_task pid=100437)[0m                                            'min_lr_ratio': None,
+[36m(main_task pid=100437)[0m                                            'total_training_steps': -1,
+[36m(main_task pid=100437)[0m                                            'warmup_style': 'constant'},
+[36m(main_task pid=100437)[0m                                  'policy_loss': {'grpo_coef': 1.0,
+[36m(main_task pid=100437)[0m                                                  'loss_mode': 'sdpo',
+[36m(main_task pid=100437)[0m                                                  'sdpo_coef': 1.0},
+[36m(main_task pid=100437)[0m                                  'ppo_epochs': 1,
+[36m(main_task pid=100437)[0m                                  'ppo_max_token_len_per_gpu': 16384,
+[36m(main_task pid=100437)[0m                                  'ppo_micro_batch_size': 32,
+[36m(main_task pid=100437)[0m                                  'ppo_mini_batch_size': 256,
+[36m(main_task pid=100437)[0m                                  'self_distillation': {'alpha': 1.0,
+[36m(main_task pid=100437)[0m                                                        'debug_print_inputs': False,
+[36m(main_task pid=100437)[0m                                                        'distillation_add_tail': True,
+[36m(main_task pid=100437)[0m                                                        'distillation_topk': None,
+[36m(main_task pid=100437)[0m                                                        'dont_reprompt_on_self_success': True,
+[36m(main_task pid=100437)[0m                                                        'environment_feedback_only_without_solution': True,
+[36m(main_task pid=100437)[0m                                                        'feedback_template': '\n'
+[36m(main_task pid=100437)[0m                                                                             'The '
+[36m(main_task pid=100437)[0m                                                                             'following '
+[36m(main_task pid=100437)[0m                                                                             'is '
+[36m(main_task pid=100437)[0m                                                                             'feedback '
+[36m(main_task pid=100437)[0m                                                                             'from '
+[36m(main_task pid=100437)[0m                                                                             'your '
+[36m(main_task pid=100437)[0m                                                                             'unsuccessful '
+[36m(main_task pid=100437)[0m                                                                             'earlier '
+[36m(main_task pid=100437)[0m                                                                             'attempt:\n'
+[36m(main_task pid=100437)[0m                                                                             '\n'
+[36m(main_task pid=100437)[0m                                                                             '{feedback_raw}',
+[36m(main_task pid=100437)[0m                                                        'feedback_template_file': None,
+[36m(main_task pid=100437)[0m                                                        'filter_reprompt_before_update': True,
+[36m(main_task pid=100437)[0m                                                        'full_logit_distillation': False,
+[36m(main_task pid=100437)[0m                                                        'include_environment_feedback': False,
+[36m(main_task pid=100437)[0m                                                        'max_reprompt_len': 10240,
+[36m(main_task pid=100437)[0m                                                        'ppo_clip': False,
+[36m(main_task pid=100437)[0m                                                        'remove_thinking_from_demonstration': True,
+[36m(main_task pid=100437)[0m                                                        'reprompt_template': '{prompt}{solution}{feedback}\n'
+[36m(main_task pid=100437)[0m                                                                             '\n'
+[36m(main_task pid=100437)[0m                                                                             'Correctly '
+[36m(main_task pid=100437)[0m                                                                             'solve '
+[36m(main_task pid=100437)[0m                                                                             'the '
+[36m(main_task pid=100437)[0m                                                                             'original '
+[36m(main_task pid=100437)[0m                                                                             'question.',
+[36m(main_task pid=100437)[0m                                                        'reprompt_template_file': None,
+[36m(main_task pid=100437)[0m                                                        'solution_template': '\n'
+[36m(main_task pid=100437)[0m                                                                             'Correct '
+[36m(main_task pid=100437)[0m                                                                             'solution:\n'
+[36m(main_task pid=100437)[0m                                                                             '\n'
+[36m(main_task pid=100437)[0m                                                                             '{successful_previous_attempt}',
+[36m(main_task pid=100437)[0m                                                        'solution_template_file': None,
+[36m(main_task pid=100437)[0m                                                        'success_reward_threshold': 0.5,
+[36m(main_task pid=100437)[0m                                                        'teacher_regularization': 'actor',
+[36m(main_task pid=100437)[0m                                                        'teacher_update_rate': 0.05},
+[36m(main_task pid=100437)[0m                                  'shuffle': False,
+[36m(main_task pid=100437)[0m                                  'state_masking': True,
+[36m(main_task pid=100437)[0m                                  'strategy': 'fsdp',
+[36m(main_task pid=100437)[0m                                  'ulysses_sequence_parallel_size': 1,
+[36m(main_task pid=100437)[0m                                  'use_dynamic_bsz': False,
+[36m(main_task pid=100437)[0m                                  'use_kl_loss': False},
+[36m(main_task pid=100437)[0m                        'hybrid_engine': True,
+[36m(main_task pid=100437)[0m                        'model': {'enable_gradient_checkpointing': True,
+[36m(main_task pid=100437)[0m                                  'external_lib': None,
+[36m(main_task pid=100437)[0m                                  'override_config': {},
+[36m(main_task pid=100437)[0m                                  'path': '/root/Search-R1/models/Qwen3.6-35B-A3B',
+[36m(main_task pid=100437)[0m                                  'trust_remote_code': True,
+[36m(main_task pid=100437)[0m                                  'use_remove_padding': False},
+[36m(main_task pid=100437)[0m                        'ref': {'fsdp_config': {'fsdp_size': -1,
+[36m(main_task pid=100437)[0m                                                'param_offload': True,
+[36m(main_task pid=100437)[0m                                                'wrap_policy': {'min_num_params': 0}},
+[36m(main_task pid=100437)[0m                                'log_prob_max_token_len_per_gpu': 16384,
+[36m(main_task pid=100437)[0m                                'log_prob_micro_batch_size': 128,
+[36m(main_task pid=100437)[0m                                'log_prob_use_dynamic_bsz': False,
+[36m(main_task pid=100437)[0m                                'model': {'path': '/root/Search-R1/models/Qwen3.6-35B-A3B'},
+[36m(main_task pid=100437)[0m                                'ulysses_sequence_parallel_size': 1},
+[36m(main_task pid=100437)[0m                        'rollout': {'do_sample': True,
+[36m(main_task pid=100437)[0m                                    'dtype': 'bfloat16',
+[36m(main_task pid=100437)[0m                                    'enforce_eager': True,
+[36m(main_task pid=100437)[0m                                    'free_cache_engine': True,
+[36m(main_task pid=100437)[0m                                    'gpu_memory_utilization': 0.5,
+[36m(main_task pid=100437)[0m                                    'ignore_eos': False,
+[36m(main_task pid=100437)[0m                                    'language_model_only': True,
+[36m(main_task pid=100437)[0m                                    'load_format': 'safetensors',
+[36m(main_task pid=100437)[0m                                    'log_prob_max_token_len_per_gpu': 16384,
+[36m(main_task pid=100437)[0m                                    'log_prob_micro_batch_size': 64,
+[36m(main_task pid=100437)[0m                                    'log_prob_top_k': 0,
+[36m(main_task pid=100437)[0m                                    'log_prob_use_dynamic_bsz': False,
+[36m(main_task pid=100437)[0m                                    'max_model_len': 4600,
+[36m(main_task pid=100437)[0m                                    'max_num_batched_tokens': 8192,
+[36m(main_task pid=100437)[0m                                    'max_num_seqs': 1024,
+[36m(main_task pid=100437)[0m                                    'n': 1,
+[36m(main_task pid=100437)[0m                                    'n_agent': 5,
+[36m(main_task pid=100437)[0m                                    'name': 'vllm',
+[36m(main_task pid=100437)[0m                                    'prompt_length': 4096,
+[36m(main_task pid=100437)[0m                                    'response_length': 500,
+[36m(main_task pid=100437)[0m                                    'reward_weight_mode': 'student_p',
+[36m(main_task pid=100437)[0m                                    'teacher_temperature': 1.0,
+[36m(main_task pid=100437)[0m                                    'temperature': 1,
+[36m(main_task pid=100437)[0m                                    'tensor_model_parallel_size': 2,
+[36m(main_task pid=100437)[0m                                    'top_k': -1,
+[36m(main_task pid=100437)[0m                                    'top_k_strategy': 'only_stu',
+[36m(main_task pid=100437)[0m                                    'top_p': 0.95}},
+[36m(main_task pid=100437)[0m  'algorithm': {'adv_estimator': 'grpo',
+[36m(main_task pid=100437)[0m                'gamma': 1.0,
+[36m(main_task pid=100437)[0m                'grpo_outcome_weight': 1.0,
+[36m(main_task pid=100437)[0m                'kl_ctrl': {'kl_coef': 0.001, 'type': 'fixed'},
+[36m(main_task pid=100437)[0m                'kl_penalty': 'kl',
+[36m(main_task pid=100437)[0m                'lam': 1.0,
+[36m(main_task pid=100437)[0m                'no_think_rl': False,
+[36m(main_task pid=100437)[0m                'state_masking': {'end_state_marker': '</information>',
+[36m(main_task pid=100437)[0m                                  'start_state_marker': '<information>'}},
+[36m(main_task pid=100437)[0m  'critic': {'cliprange_value': 0.5,
+[36m(main_task pid=100437)[0m             'forward_max_token_len_per_gpu': 32768,
+[36m(main_task pid=100437)[0m             'forward_micro_batch_size': 64,
+[36m(main_task pid=100437)[0m             'grad_clip': 1.0,
+[36m(main_task pid=100437)[0m             'model': {'enable_gradient_checkpointing': False,
+[36m(main_task pid=100437)[0m                       'external_lib': None,
+[36m(main_task pid=100437)[0m                       'fsdp_config': {'fsdp_size': -1,
+[36m(main_task pid=100437)[0m                                       'grad_offload': False,
+[36m(main_task pid=100437)[0m                                       'optimizer_offload': False,
+[36m(main_task pid=100437)[0m                                       'param_offload': False,
+[36m(main_task pid=100437)[0m                                       'wrap_policy': {'min_num_params': 0}},
+[36m(main_task pid=100437)[0m                       'override_config': {},
+[36m(main_task pid=100437)[0m                       'path': '~/models/deepseek-llm-7b-chat',
+[36m(main_task pid=100437)[0m                       'tokenizer_path': '/root/Search-R1/models/Qwen3.6-35B-A3B',
+[36m(main_task pid=100437)[0m                       'use_remove_padding': False},
+[36m(main_task pid=100437)[0m             'optim': {'lr': 1e-05,
+[36m(main_task pid=100437)[0m                       'lr_warmup_steps_ratio': 0.0,
+[36m(main_task pid=100437)[0m                       'min_lr_ratio': None,
+[36m(main_task pid=100437)[0m                       'total_training_steps': -1,
+[36m(main_task pid=100437)[0m                       'warmup_style': 'constant'},
+[36m(main_task pid=100437)[0m             'ppo_epochs': 1,
+[36m(main_task pid=100437)[0m             'ppo_max_token_len_per_gpu': 32768,
+[36m(main_task pid=100437)[0m             'ppo_micro_batch_size': 64,
+[36m(main_task pid=100437)[0m             'ppo_mini_batch_size': 256,
+[36m(main_task pid=100437)[0m             'shuffle': False,
+[36m(main_task pid=100437)[0m             'strategy': 'fsdp',
+[36m(main_task pid=100437)[0m             'ulysses_sequence_parallel_size': 1,
+[36m(main_task pid=100437)[0m             'use_dynamic_bsz': False},
+[36m(main_task pid=100437)[0m  'data': {'max_obs_length': 500,
+[36m(main_task pid=100437)[0m           'max_prompt_length': 4096,
+[36m(main_task pid=100437)[0m           'max_response_length': 500,
+[36m(main_task pid=100437)[0m           'max_start_length': 2048,
+[36m(main_task pid=100437)[0m           'prompt_key': 'prompt',
+[36m(main_task pid=100437)[0m           'return_raw_chat': True,
+[36m(main_task pid=100437)[0m           'return_raw_input_ids': False,
+[36m(main_task pid=100437)[0m           'shuffle_train_dataloader': True,
+[36m(main_task pid=100437)[0m           'tokenizer': None,
+[36m(main_task pid=100437)[0m           'train_batch_size': 512,
+[36m(main_task pid=100437)[0m           'train_data_num': None,
+[36m(main_task pid=100437)[0m           'train_files': './data/nq_hotpotqa_train/train.parquet',
+[36m(main_task pid=100437)[0m           'val_batch_size': 256,
+[36m(main_task pid=100437)[0m           'val_data_num': None,
+[36m(main_task pid=100437)[0m           'val_files': './data/nq_hotpotqa_train/test.parquet'},
+[36m(main_task pid=100437)[0m  'do_search': True,
+[36m(main_task pid=100437)[0m  'max_turns': 4,
+[36m(main_task pid=100437)[0m  'retriever': {'topk': 3, 'url': 'http://127.0.0.1:8000/retrieve'},
+[36m(main_task pid=100437)[0m  'reward_model': {'enable': False,
+[36m(main_task pid=100437)[0m                   'final_format_score': 0,
+[36m(main_task pid=100437)[0m                   'forward_max_token_len_per_gpu': 32768,
+[36m(main_task pid=100437)[0m                   'max_length': None,
+[36m(main_task pid=100437)[0m                   'micro_batch_size': 64,
+[36m(main_task pid=100437)[0m                   'model': {'external_lib': None,
+[36m(main_task pid=100437)[0m                             'fsdp_config': {'min_num_params': 0,
+[36m(main_task pid=100437)[0m                                             'param_offload': False},
+[36m(main_task pid=100437)[0m                             'input_tokenizer': '/root/Search-R1/models/Qwen3.6-35B-A3B',
+[36m(main_task pid=100437)[0m                             'path': '~/models/FsfairX-LLaMA3-RM-v0.1',
+[36m(main_task pid=100437)[0m                             'use_remove_padding': False},
+[36m(main_task pid=100437)[0m                   'retrieval_score': 0,
+[36m(main_task pid=100437)[0m                   'strategy': 'fsdp',
+[36m(main_task pid=100437)[0m                   'structure_format_score': 0,
+[36m(main_task pid=100437)[0m                   'ulysses_sequence_parallel_size': 1,
+[36m(main_task pid=100437)[0m                   'use_dynamic_bsz': False,
+[36m(main_task pid=100437)[0m                   'use_opd_teacher': False},
+[36m(main_task pid=100437)[0m  'trainer': {'critic_warmup': 0,
+[36m(main_task pid=100437)[0m              'default_hdfs_dir': None,
+[36m(main_task pid=100437)[0m              'default_local_dir': 'verl_checkpoints/nq_sdpo-qwen3.6-35b-a3b-em-replay',
+[36m(main_task pid=100437)[0m              'eval_from_replay': False,
+[36m(main_task pid=100437)[0m              'eval_prompt_mode': 'student',
+[36m(main_task pid=100437)[0m              'eval_replay_dedupe_key': 'index',
+[36m(main_task pid=100437)[0m              'eval_replay_dedupe_strategy': 'latest_step',
+[36m(main_task pid=100437)[0m              'eval_replay_limit': None,
+[36m(main_task pid=100437)[0m              'eval_replay_output_path': None,
+[36m(main_task pid=100437)[0m              'eval_replay_path': None,
+[36m(main_task pid=100437)[0m              'eval_replay_require_distillation_mask': False,
+[36m(main_task pid=100437)[0m              'experiment_name': 'nq_sdpo-qwen3.6-35b-a3b-em-replay',
+[36m(main_task pid=100437)[0m              'logger': ['console', 'wandb'],
+[36m(main_task pid=100437)[0m              'n_gpus_per_node': 8,
+[36m(main_task pid=100437)[0m              'nnodes': 1,
+[36m(main_task pid=100437)[0m              'project_name': 'Search-R1',
+[36m(main_task pid=100437)[0m              'save_eval_replay': False,
+[36m(main_task pid=100437)[0m              'save_freq': 100,
+[36m(main_task pid=100437)[0m              'save_train_replay': True,
+[36m(main_task pid=100437)[0m              'save_val_replay': False,
+[36m(main_task pid=100437)[0m              'test_freq': 100,
+[36m(main_task pid=100437)[0m              'total_epochs': 15,
+[36m(main_task pid=100437)[0m              'total_training_steps': 1005,
+[36m(main_task pid=100437)[0m              'train_replay_path': 'res/train_replays/nq_sdpo-qwen3.6-35b-a3b-em-replay',
+[36m(main_task pid=100437)[0m              'val_before_train': True,
+[36m(main_task pid=100437)[0m              'val_only': False,
+[36m(main_task pid=100437)[0m              'val_replay_path': None}}
+[36m(main_task pid=100437)[0m original dataset len: 51713
+[36m(main_task pid=100437)[0m filter dataset len: 51713
+[36m(main_task pid=100437)[0m filtered validation dataset size: 51713
+[36m(main_task pid=100437)[0m original dataset len: 169615
+[36m(main_task pid=100437)[0m filter dataset len: 169615
+[36m(main_task pid=100437)[0m filtered training dataset size: 169615
+[36m(main_task pid=100437)[0m Size of train dataloader: 331
+[36m(main_task pid=100437)[0m Size of val dataloader: 202
+[36m(main_task pid=100437)[0m Total training steps: 1005
+[36m(main_task pid=100437)[0m wandb: [wandb.login()] Using explicit session credentials for https://api.forge.coreweave.com.
+[36m(main_task pid=100437)[0m wandb: Appending key for api.forge.coreweave.com to your netrc file: /root/.netrc
+[36m(main_task pid=100437)[0m wandb: Currently logged in as: mengrui6351 to https://api.forge.coreweave.com. Use `wandb login --relogin` to force relogin
+[36m(main_task pid=100437)[0m wandb: Tracking run with wandb version 0.31.0
+[36m(main_task pid=100437)[0m wandb: Run data is saved locally in /root/Search-R1/wandb/run-20261115_110338-gvfwztjh
+[36m(main_task pid=100437)[0m wandb: Run `wandb offline` to turn off syncing.
+[36m(main_task pid=100437)[0m wandb: Syncing run nq_sdpo-qwen3.6-35b-a3b-em-replay
+[36m(main_task pid=100437)[0m wandb: ⭐️ View project at https://forge.coreweave.com/wandb/mengrui6351/Search-R1
+[36m(main_task pid=100437)[0m wandb: 🚀 View run at https://forge.coreweave.com/wandb/mengrui6351/Search-R1/runs/gvfwztjh
+[36m(main_task pid=100437)[0m wandb: Detected [openai] in use.
+[36m(main_task pid=100437)[0m wandb: Use W&B Weave for improved LLM call tracing. Install Weave with `pip install weave` then add `import weave` to the top of your script.
+[36m(main_task pid=100437)[0m wandb: For more information, check out the docs at: https://weave-docs.wandb.ai
+[36m(main_task pid=100437)[0m Using LocalLogger is deprecated. The constructor API will change 
+[36m(WorkerDict pid=102027)[0m Loading weights:   0%|          | 0/693 [00:00<?, ?it/s]
+[36m(WorkerDict pid=102027)[0m Loading weights: 100%|██████████| 693/693 [00:00<00:00, 9833.36it/s]
+[36m(WorkerDict pid=102027)[0m [rank7]:[W1115 11:03:55.917341144 ProcessGroupNCCL.cpp:5276] Guessing device ID based on global rank. This can cause a hang if rank to GPU mapping is heterogeneous. You can specify device_id in init_process_group()
+[36m(WorkerDict pid=101663)[0m Model config after override: Qwen3_5MoeConfig {
+[36m(WorkerDict pid=101663)[0m   "architectures": [
+[36m(WorkerDict pid=101663)[0m     "Qwen3_5MoeForConditionalGeneration"
+[36m(WorkerDict pid=101663)[0m   ],
+[36m(WorkerDict pid=101663)[0m   "bos_token_id": null,
+[36m(WorkerDict pid=101663)[0m   "eos_token_id": 248046,
+[36m(WorkerDict pid=101663)[0m   "image_token_id": 248056,
+[36m(WorkerDict pid=101663)[0m   "model_type": "qwen3_5_moe",
+[36m(WorkerDict pid=101663)[0m   "pad_token_id": 248044,
+[36m(WorkerDict pid=101663)[0m   "text_config": {
+[36m(WorkerDict pid=101663)[0m     "attention_bias": false,
+[36m(WorkerDict pid=101663)[0m     "attention_dropout": 0.0,
+[36m(WorkerDict pid=101663)[0m     "attn_output_gate": true,
+[36m(WorkerDict pid=101663)[0m     "bos_token_id": null,
+[36m(WorkerDict pid=101663)[0m     "dtype": "bfloat16",
+[36m(WorkerDict pid=101663)[0m     "eos_token_id": 248046,
+[36m(WorkerDict pid=101663)[0m     "full_attention_interval": 4,
+[36m(WorkerDict pid=101663)[0m     "head_dim": 256,
+[36m(WorkerDict pid=101663)[0m     "hidden_act": "silu",
+[36m(WorkerDict pid=101663)[0m     "hidden_size": 2048,
+[36m(WorkerDict pid=101663)[0m     "initializer_range": 0.02,
+[36m(WorkerDict pid=101663)[0m     "layer_types": [
+[36m(WorkerDict pid=101663)[0m       "linear_attention",
+[36m(WorkerDict pid=101663)[0m       "linear_attention",
+[36m(WorkerDict pid=101663)[0m       "linear_attention",
+[36m(WorkerDict pid=101663)[0m       "full_attention",
+[36m(WorkerDict pid=101663)[0m       "linear_attention",
+[36m(WorkerDict pid=101663)[0m       "linear_attention",
+[36m(WorkerDict pid=101663)[0m       "linear_attention",
+[36m(WorkerDict pid=101663)[0m       "full_attention",
+[36m(WorkerDict pid=101663)[0m       "linear_attention",
+[36m(WorkerDict pid=101663)[0m       "linear_attention",
+[36m(WorkerDict pid=101663)[0m       "linear_attention",
+[36m(WorkerDict pid=101663)[0m       "full_attention",
+[36m(WorkerDict pid=101663)[0m       "linear_attention",
+[36m(WorkerDict pid=101663)[0m       "linear_attention",
+[36m(WorkerDict pid=101663)[0m       "linear_attention",
+[36m(WorkerDict pid=101663)[0m       "full_attention",
+[36m(WorkerDict pid=101663)[0m       "linear_attention",
+[36m(WorkerDict pid=101663)[0m       "linear_attention",
+[36m(WorkerDict pid=101663)[0m       "linear_attention",
+[36m(WorkerDict pid=101663)[0m       "full_attention",
+[36m(WorkerDict pid=101663)[0m       "linear_attention",
+[36m(WorkerDict pid=101663)[0m       "linear_attention",
+[36m(WorkerDict pid=101663)[0m       "linear_attention",
+[36m(WorkerDict pid=101663)[0m       "full_attention",
+[36m(WorkerDict pid=101663)[0m       "linear_attention",
+[36m(WorkerDict pid=101663)[0m       "linear_attention",
+[36m(WorkerDict pid=101663)[0m       "linear_attention",
+[36m(WorkerDict pid=101663)[0m       "full_attention",
+[36m(WorkerDict pid=101663)[0m       "linear_attention",
+[36m(WorkerDict pid=101663)[0m       "linear_attention",
+[36m(WorkerDict pid=101663)[0m       "linear_attention",
+[36m(WorkerDict pid=101663)[0m       "full_attention",
+[36m(WorkerDict pid=101663)[0m       "linear_attention",
+[36m(WorkerDict pid=101663)[0m       "linear_attention",
+[36m(WorkerDict pid=101663)[0m       "linear_attention",
+[36m(WorkerDict pid=101663)[0m       "full_attention",
+[36m(WorkerDict pid=101663)[0m       "linear_attention",
+[36m(WorkerDict pid=101663)[0m       "linear_attention",
+[36m(WorkerDict pid=101663)[0m       "linear_attention",
+[36m(WorkerDict pid=101663)[0m       "full_attention"
+[36m(WorkerDict pid=101663)[0m     ],
+[36m(WorkerDict pid=101663)[0m     "linear_conv_kernel_dim": 4,
+[36m(WorkerDict pid=101663)[0m     "linear_key_head_dim": 128,
+[36m(WorkerDict pid=101663)[0m     "linear_num_key_heads": 16,
+[36m(WorkerDict pid=101663)[0m     "linear_num_value_heads": 32,
+[36m(WorkerDict pid=101663)[0m     "linear_value_head_dim": 128,
+[36m(WorkerDict pid=101663)[0m     "mamba_ssm_dtype": "float32",
+[36m(WorkerDict pid=101663)[0m     "max_position_embeddings": 262144,
+[36m(WorkerDict pid=101663)[0m     "model_type": "qwen3_5_moe_text",
+[36m(WorkerDict pid=101663)[0m     "moe_intermediate_size": 512,
+[36m(WorkerDict pid=101663)[0m     "mtp_num_hidden_layers": 1,
+[36m(WorkerDict pid=101663)[0m     "mtp_use_dedicated_embeddings": false,
+[36m(WorkerDict pid=101663)[0m     "num_attention_heads": 16,
+[36m(WorkerDict pid=101663)[0m     "num_experts": 256,
+[36m(WorkerDict pid=101663)[0m     "num_experts_per_tok": 8,
+[36m(WorkerDict pid=101663)[0m     "num_hidden_layers": 40,
+[36m(WorkerDict pid=101663)[0m     "num_key_value_heads": 2,
+[36m(WorkerDict pid=101663)[0m     "output_router_logits": false,
+[36m(WorkerDict pid=101663)[0m     "pad_token_id": 248044,
+[36m(WorkerDict pid=101663)[0m     "partial_rotary_factor": 0.25,
+[36m(WorkerDict pid=101663)[0m     "rms_norm_eps": 1e-06,
+[36m(WorkerDict pid=101663)[0m     "rope_parameters": {
+[36m(WorkerDict pid=101663)[0m       "mrope_interleaved": true,
+[36m(WorkerDict pid=101663)[0m       "mrope_section": [
+[36m(WorkerDict pid=101663)[0m         11,
+[36m(WorkerDict pid=101663)[0m         11,
+[36m(WorkerDict pid=101663)[0m         10
+[36m(WorkerDict pid=101663)[0m       ],
+[36m(WorkerDict pid=101663)[0m       "partial_rotary_factor": 0.25,
+[36m(WorkerDict pid=101663)[0m       "rope_theta": 10000000,
+[36m(WorkerDict pid=101663)[0m       "rope_type": "default"
+[36m(WorkerDict pid=101663)[0m     },
+[36m(WorkerDict pid=101663)[0m     "router_aux_loss_coef": 0.001,
+[36m(WorkerDict pid=101663)[0m     "shared_expert_intermediate_size": 512,
+[36m(WorkerDict pid=101663)[0m     "tie_word_embeddings": false,
+[36m(WorkerDict pid=101663)[0m     "use_cache": true,
+[36m(WorkerDict pid=101663)[0m     "vocab_size": 248320
+[36m(WorkerDict pid=101663)[0m   },
+[36m(WorkerDict pid=101663)[0m   "tie_word_embeddings": false,
+[36m(WorkerDict pid=101663)[0m   "transformers_version": "5.16.1",
+[36m(WorkerDict pid=101663)[0m   "video_token_id": 248057,
+[36m(WorkerDict pid=101663)[0m   "vision_config": {
+[36m(WorkerDict pid=101663)[0m     "deepstack_visual_indexes": [],
+[36m(WorkerDict pid=101663)[0m     "depth": 27,
+[36m(WorkerDict pid=101663)[0m     "hidden_act": "gelu_pytorch_tanh",
+[36m(WorkerDict pid=101663)[0m     "hidden_size": 1152,
+[36m(WorkerDict pid=101663)[0m     "in_channels": 3,
+[36m(WorkerDict pid=101663)[0m     "initializer_range": 0.02,
+[36m(WorkerDict pid=101663)[0m     "intermediate_size": 4304,
+[36m(WorkerDict pid=101663)[0m     "model_type": "qwen3_5_moe_vision",
+[36m(WorkerDict pid=101663)[0m     "num_heads": 16,
+[36m(WorkerDict pid=101663)[0m     "num_position_embeddings": 2304,
+[36m(WorkerDict pid=101663)[0m     "out_hidden_size": 2048,
+[36m(WorkerDict pid=101663)[0m     "patch_size": 16,
+[36m(WorkerDict pid=101663)[0m     "spatial_merge_size": 2,
+[36m(WorkerDict pid=101663)[0m     "temporal_patch_size": 2
+[36m(WorkerDict pid=101663)[0m   },
+[36m(WorkerDict pid=101663)[0m   "vision_end_token_id": 248054,
+[36m(WorkerDict pid=101663)[0m   "vision_start_token_id": 248053
+[36m(WorkerDict pid=101663)[0m }
+[36m(WorkerDict pid=101663)[0m 
+[36m(WorkerDict pid=101663)[0m /root/miniconda3/envs/searchr1-qwen36/lib/python3.11/site-packages/torch/distributed/c10d_logger.py:83: UserWarning: barrier(): using the device under current context. You can specify `device_id` in `init_process_group` to mute this warning.
+[36m(WorkerDict pid=101663)[0m   return func(*args, **kwargs)
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO ENV/Plugin: Could not find: libnccl-env.so
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO NCCL_SOCKET_IFNAME set by environment to lo
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO Bootstrap: Using lo:127.0.0.1<0>
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO cudaDriverVersion 13000
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO NCCL version 2.29.7+cuda13.2
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO NCCL git version stable b81d6a5a3
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO Comm config Blocking set to 1
+[36m(WorkerDict pid=102024)[0m Loading weights:  98%|█████████▊| 680/693 [00:00<00:00, 6798.61it/s]Loading weights: 100%|██████████| 693/693 [00:00<00:00, 6876.35it/s]
+[36m(WorkerDict pid=102026)[0m Loading weights:  90%|█████████ | 626/693 [00:00<00:00, 6259.44it/s]Loading weights: 100%|██████████| 693/693 [00:00<00:00, 6736.66it/s]
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO NCCL_NET_PLUGIN set by environment to none
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO NCCL_IB_DISABLE set by environment to 1.
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO transport/net_ib/init.cc:396 -> 3
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO Failed to initialize NET plugin IB
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO NET/Socket : Using [0]lo:127.0.0.1<0>
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO Initialized NET plugin Socket
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO Assigned NET plugin Socket to comm
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO GIN/Plugin: Could not find: libnccl-gin.so
+[36m(WorkerDict pid=101663)[0m 
+[36m(WorkerDict pid=101663)[0m [2026-11-15 11:03:58] bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] misc/ibvwrap.cc:173 NCCL WARN lib wrapper not initialized.
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO transport/net_ib/gdr.cc:56 -> 3
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO Failed to initialize any GIN plugin
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO Using network Socket
+[36m(WorkerDict pid=102023)[0m 
+[36m(WorkerDict pid=102021)[0m 
+[36m(WorkerDict pid=102022)[0m 
+[36m(WorkerDict pid=102025)[0m 
+[36m(WorkerDict pid=102027)[0m 
+[36m(WorkerDict pid=102024)[0m 
+[36m(WorkerDict pid=102026)[0m 
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO [Rank 0] ncclCommInitRankConfig comm 0x5c0075f328f0 rank 0 nranks 8 cudaDev 0 nvmlDev 0 busId 4000 commId 0x69810b5c4c4db883 - Init START
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO RAS client listening socket at 127.0.0.1<28028>
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO Bootstrap timings total 0.032436 (create 0.000032, send 0.000078, recv 0.010614, ring 0.021304, delay 0.000001)
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO MNNVL busId 0x4000 fabric UUID 0.0 cliqueId 0x0 state 3 healthMask 0x0
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO NCCL_CROSS_NIC set by environment to 0.
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO ncclTopoGetCpuAffinity: Affinity for GPU 0 is 0-51,104-155. (GPU affinity = 0-51,104-155 ; CPU affinity = 0-207).
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO NCCL_NVLS_ENABLE set by environment to 0.
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO comm 0x5c0075f328f0 rank 0 nRanks 8 nNodes 1 localRanks 8 localRank 0 MNNVL 0
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO NCCL_MIN_NCHANNELS set by environment to 4.
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO Channel 00/24 : 0 1 2 3 4 5 6 7
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO Channel 01/24 : 0 1 2 3 4 5 6 7
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO Channel 02/24 : 0 1 2 3 4 5 6 7
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO Channel 03/24 : 0 1 2 3 4 5 6 7
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO Channel 04/24 : 0 1 2 3 4 5 6 7
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO Channel 05/24 : 0 1 2 3 4 5 6 7
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO Channel 06/24 : 0 1 2 3 4 5 6 7
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO Channel 07/24 : 0 1 2 3 4 5 6 7
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO Channel 08/24 : 0 1 2 3 4 5 6 7
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO Channel 09/24 : 0 1 2 3 4 5 6 7
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO Channel 10/24 : 0 1 2 3 4 5 6 7
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO Channel 11/24 : 0 1 2 3 4 5 6 7
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO Channel 12/24 : 0 1 2 3 4 5 6 7
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO Channel 13/24 : 0 1 2 3 4 5 6 7
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO Channel 14/24 : 0 1 2 3 4 5 6 7
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO Channel 15/24 : 0 1 2 3 4 5 6 7
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO Channel 16/24 : 0 1 2 3 4 5 6 7
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO Channel 17/24 : 0 1 2 3 4 5 6 7
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO Channel 18/24 : 0 1 2 3 4 5 6 7
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO Channel 19/24 : 0 1 2 3 4 5 6 7
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO Channel 20/24 : 0 1 2 3 4 5 6 7
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO Channel 21/24 : 0 1 2 3 4 5 6 7
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO Channel 22/24 : 0 1 2 3 4 5 6 7
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO Channel 23/24 : 0 1 2 3 4 5 6 7
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO Trees [0] 1/-1/-1->0->-1 [1] 1/-1/-1->0->-1 [2] 1/-1/-1->0->-1 [3] 1/-1/-1->0->-1 [4] 1/-1/-1->0->-1 [5] 1/-1/-1->0->-1 [6] 1/-1/-1->0->-1 [7] 1/-1/-1->0->-1 [8] 1/-1/-1->0->-1 [9] 1/-1/-1->0->-1 [10] 1/-1/-1->0->-1 [11] 1/-1/-1->0->-1 [12] 1/-1/-1->0->-1 [13] 1/-1/-1->0->-1 [14] 1/-1/-1->0->-1 [15] 1/-1/-1->0->-1 [16] 1/-1/-1->0->-1 [17] 1/-1/-1->0->-1 [18] 1/-1/-1->0->-1 [19] 1/-1/-1->0->-1 [20] 1/-1/-1->0->-1 [21] 1/-1/-1->0->-1 [22] 1/-1/-1->0->-1 [23] 1/-1/-1->0->-1
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO NCCL_BUFFSIZE set by environment to 8388608.
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO NCCL_P2P_NVL_CHUNKSIZE set by environment to 1048576.
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO P2P Chunksize set to 1048576
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO PROFILER/Plugin: Could not find: libnccl-profiler.so
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO Check P2P Type isAllDirectP2p 1 directMode 0 isAllCudaP2p 1
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:102777 [0] NCCL INFO [Proxy Service] Device 0 CPU core 12
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:102778 [0] NCCL INFO [Proxy Service UDS] Device 0 CPU core 25
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO NCCL_TUNER_PLUGIN set by environment to none
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO NCCL_PROTO set by environment to Simple
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO NCCL_ALGO set by environment to Ring
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO Enabled NCCL Func/Proto/Algo Matrix:
+[36m(WorkerDict pid=101663)[0m      Function |       LL     LL128    Simple   |          Tree           Ring  CollNetDirect   CollNetChain           NVLS       NVLSTree            PAT  
+[36m(WorkerDict pid=101663)[0m     Broadcast |        0         0         1   |             0              1              0              0              0              0              0  
+[36m(WorkerDict pid=101663)[0m        Reduce |        0         0         1   |             0              1              0              0              0              0              0  
+[36m(WorkerDict pid=101663)[0m     AllGather |        0         0         1   |             0              1              0              0              0              0              0  
+[36m(WorkerDict pid=101663)[0m ReduceScatter |        0         0         1   |             0              1              0              0              0              0              0  
+[36m(WorkerDict pid=101663)[0m     AllReduce |        0         0         1   |             0              1              0              0              0              0              0  
+[36m(WorkerDict pid=101663)[0m 
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO threadThresholds 8/8/64 | 64/8/64 | 512 | 512
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO 24 coll channels, 24 collnet channels, 0 nvls channels, 32 p2p channels, 32 p2p channels per peer
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO Symmetric VA size=80GB
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO CC Off, workFifoBytes 1048576
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO ncclCommInitRankConfig comm 0x5c0075f328f0 rank 0 nranks 8 cudaDev 0 nvmlDev 0 busId 4000 commId 0x69810b5c4c4db883 - Init COMPLETE
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO Init timings - ncclCommInitRankConfig: rank 0 nranks 8 total 1.39 (kernels 0.32, alloc 0.87, bootstrap 0.03, allgathers 0.01, topo 0.06, graphs 0.01, connections 0.07, rest 0.02)
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO Symmetric VA size=80GB
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO Channel 00/0 : 0[0] -> 1[1] via P2P/CUMEM
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO Channel 01/0 : 0[0] -> 1[1] via P2P/CUMEM
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO Channel 02/0 : 0[0] -> 1[1] via P2P/CUMEM
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO Channel 03/0 : 0[0] -> 1[1] via P2P/CUMEM
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO Channel 04/0 : 0[0] -> 1[1] via P2P/CUMEM
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO Channel 05/0 : 0[0] -> 1[1] via P2P/CUMEM
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO Channel 06/0 : 0[0] -> 1[1] via P2P/CUMEM
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO Channel 07/0 : 0[0] -> 1[1] via P2P/CUMEM
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO Channel 08/0 : 0[0] -> 1[1] via P2P/CUMEM
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO Channel 09/0 : 0[0] -> 1[1] via P2P/CUMEM
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO Channel 10/0 : 0[0] -> 1[1] via P2P/CUMEM
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO Channel 11/0 : 0[0] -> 1[1] via P2P/CUMEM
+[36m(WorkerDict pid=101663)[0m bolt-n6gamr382y-n58g2mqc97:101663:101663 [0] NCCL INFO Connected all rings, use ring PXN 0 GDR 1
+[36m(WorkerDict pid=101663)[0m Qwen3_5MoeForCausalLM contains 34.66B parameters
+Error executing job with overrides: ['algorithm.adv_estimator=grpo', 'data.train_files=./data/nq_hotpotqa_train/train.parquet', 'data.val_files=./data/nq_hotpotqa_train/test.parquet', 'data.train_data_num=null', 'data.val_data_num=null', 'data.return_raw_chat=true', 'data.train_batch_size=512', 'data.val_batch_size=256', 'data.max_prompt_length=4096', 'data.max_response_length=500', 'data.max_start_length=2048', 'data.max_obs_length=500', 'data.shuffle_train_dataloader=True', 'actor_rollout_ref.model.path=/root/Search-R1/models/Qwen3.6-35B-A3B', 'actor_rollout_ref.model.enable_gradient_checkpointing=true', 'actor_rollout_ref.model.use_remove_padding=False', '+actor_rollout_ref.model.trust_remote_code=True', 'actor_rollout_ref.actor.optim.lr=1e-6', 'actor_rollout_ref.actor.optim.lr_warmup_steps_ratio=0.285', 'actor_rollout_ref.actor.use_kl_loss=false', 'actor_rollout_ref.actor.ppo_mini_batch_size=256', 'actor_rollout_ref.actor.ppo_micro_batch_size=32', 'actor_rollout_ref.actor.fsdp_config.param_offload=true', 'actor_rollout_ref.actor.fsdp_config.grad_offload=true', 'actor_rollout_ref.actor.fsdp_config.optimizer_offload=true', 'actor_rollout_ref.rollout.log_prob_micro_batch_size=64', 'actor_rollout_ref.rollout.tensor_model_parallel_size=2', 'actor_rollout_ref.rollout.name=vllm', 'actor_rollout_ref.rollout.gpu_memory_utilization=0.5', 'actor_rollout_ref.rollout.load_format=safetensors', 'actor_rollout_ref.rollout.enforce_eager=True', 'actor_rollout_ref.rollout.free_cache_engine=True', '+actor_rollout_ref.rollout.max_model_len=4600', '+actor_rollout_ref.rollout.language_model_only=True', 'actor_rollout_ref.rollout.n=1', 'actor_rollout_ref.rollout.n_agent=5', 'algorithm.no_think_rl=false', 'actor_rollout_ref.rollout.temperature=1', 'actor_rollout_ref.actor.state_masking=true', 'reward_model.enable=false', "trainer.logger=['console','wandb']", '+trainer.val_only=false', 'trainer.val_before_train=true', 'trainer.default_hdfs_dir=null', 'trainer.n_gpus_per_node=8', 'trainer.nnodes=1', 'trainer.save_freq=100', 'trainer.test_freq=100', 'trainer.save_train_replay=true', 'trainer.train_replay_path=res/train_replays/nq_sdpo-qwen3.6-35b-a3b-em-replay', 'trainer.project_name=Search-R1', 'trainer.experiment_name=nq_sdpo-qwen3.6-35b-a3b-em-replay', 'trainer.total_epochs=15', 'trainer.total_training_steps=1005', 'trainer.default_local_dir=verl_checkpoints/nq_sdpo-qwen3.6-35b-a3b-em-replay', 'do_search=true', 'max_turns=4', 'retriever.url=http://127.0.0.1:8000/retrieve', 'retriever.topk=3']
+Traceback (most recent call last):
+  File "/root/Search-R1/verl/trainer/main_ppo.py", line 133, in main
+    ray.get(main_task.remote(config))
+  File "/root/miniconda3/envs/searchr1-qwen36/lib/python3.11/site-packages/ray/_private/auto_init_hook.py", line 22, in auto_init_wrapper
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/root/miniconda3/envs/searchr1-qwen36/lib/python3.11/site-packages/ray/_private/client_mode_hook.py", line 134, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/root/miniconda3/envs/searchr1-qwen36/lib/python3.11/site-packages/ray/_private/worker.py", line 3009, in get
+    values, debugger_breakpoint = worker.get_objects(
+                                  ^^^^^^^^^^^^^^^^^^^
+  File "/root/miniconda3/envs/searchr1-qwen36/lib/python3.11/site-packages/ray/_private/worker.py", line 1053, in get_objects
+    raise value.as_instanceof_cause()
+ray.exceptions.RayTaskError: [36mray::main_task()[39m (pid=100437, ip=240.19.50.206)
+  File "/root/Search-R1/verl/trainer/main_ppo.py", line 223, in main_task
+    trainer.init_workers()
+  File "/root/Search-R1/verl/trainer/ppo/ray_trainer.py", line 1170, in init_workers
+    self.ref_policy_wg.init_model()
+  File "/root/Search-R1/verl/single_controller/ray/base.py", line 42, in func
+    output = ray.get(output)
+             ^^^^^^^^^^^^^^^
+           ^^^^^^^^^^^^^^^^^^^
+           ^^^^^^^^^^^^^^^^^^^^^
+                                  ^^^^^^^^^^^^^^^^^^^
+ray.exceptions.RayTaskError: [36mray::WorkerDict.ref_init_model()[39m (pid=101663, ip=240.19.50.206, actor_id=7d9369ab2424b095f9a7dfe101000000, repr=<verl.single_controller.ray.base.WorkerDict object at 0x7ebba1f22fd0>)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/Search-R1/verl/single_controller/ray/base.py", line 399, in func
+    return getattr(self.worker_dict[key], name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/Search-R1/verl/single_controller/base/decorator.py", line 404, in inner
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/root/Search-R1/verl/workers/fsdp_workers.py", line 389, in init_model
+    self.ref_module_fsdp = self._build_model_optimizer(model_path=ref_model_path,
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/Search-R1/verl/workers/fsdp_workers.py", line 211, in _build_model_optimizer
+    auto_wrap_policy = get_fsdp_wrap_policy(module=actor_module, config=fsdp_config.get('wrap_policy', None))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/Search-R1/verl/utils/fsdp_utils.py", line 92, in get_fsdp_wrap_policy
+    raise Exception("Could not find the transformer layer class to wrap in the model.")
+Exception: Could not find the transformer layer class to wrap in the model.
+
+Set the environment variable HYDRA_FULL_ERROR=1 for a complete stack trace.
+[36m(WorkerDict pid=102027)[0m bolt-n6gamr382y-n58g2mqc97:102027:102027 [0] NCCL INFO ENV/Plugin: Could not find: libnccl-env.so[32m [repeated 7x across cluster] (Ray deduplicates logs by default. Set RAY_DEDUP_LOGS=0 to disable log deduplication, or see https://docs.ray.io/en/master/ray-observability/user-guides/configure-logging.html#log-deduplication for more options.)[0m
+[36m(WorkerDict pid=102026)[0m bolt-n6gamr382y-n58g2mqc97:102026:102026 [0] NCCL INFO NCCL_SOCKET_IFNAME set by environment to lo[32m [repeated 15x across cluster][0m
+[36m(WorkerDict pid=102027)[0m bolt-n6gamr382y-n58g2mqc97:102027:102027 [0] NCCL INFO Bootstrap: Using lo:127.0.0.1<0>[32m [repeated 7x across cluster][0m
+[36m(WorkerDict pid=102027)[0m bolt-n6gamr382y-n58g2mqc97:102027:102027 [0] NCCL INFO cudaDriverVersion 13000[32m [repeated 7x across cluster][0m
+[36m(WorkerDict pid=102027)[0m bolt-n6gamr382y-n58g2mqc97:102027:102027 [0] NCCL INFO NCCL version 2.29.7+cuda13.2[32m [repeated 7x across cluster][0m
+[36m(WorkerDict pid=102027)[0m bolt-n6gamr382y-n58g2mqc97:102027:102027 [0] NCCL INFO NCCL git version stable b81d6a5a3[32m [repeated 7x across cluster][0m
+[36m(WorkerDict pid=102027)[0m bolt-n6gamr382y-n58g2mqc97:102027:102027 [0] NCCL INFO Comm config Blocking set to 1[32m [repeated 7x across cluster][0m
+[36m(WorkerDict pid=102026)[0m bolt-n6gamr382y-n58g2mqc97:102026:102026 [0] NCCL INFO NCCL_NET_PLUGIN set by environment to none[32m [repeated 7x across cluster][0m
+[36m(WorkerDict pid=102026)[0m bolt-n6gamr382y-n58g2mqc97:102026:102026 [0] NCCL INFO NCCL_IB_DISABLE set by environment to 1.[32m [repeated 7x across cluster][0m
+[36m(WorkerDict pid=102026)[0m bolt-n6gamr382y-n58g2mqc97:102026:102026 [0] NCCL INFO transport/net_ib/gdr.cc:56 -> 3[32m [repeated 14x across cluster][0m
+[36m(WorkerDict pid=102026)[0m bolt-n6gamr382y-n58g2mqc97:102026:102026 [0] NCCL INFO Failed to initialize NET plugin IB[32m [repeated 7x across cluster][0m
+[36m(WorkerDict pid=102026)[0m bolt-n6gamr382y-n58g2mqc97:102026:102026 [0] NCCL INFO NET/Socket : Using [0]lo:127.0.0.1<0>[32m [repeated 7x across cluster][0m
+[36m(WorkerDict pid=102026)[0m bolt-n6gamr382y-n58g2mqc97:102026:102026 [0] NCCL INFO Initialized NET plugin Socket[32m [repeated 7x across cluster][0m
+[36m(WorkerDict pid=102026)[0m bolt-n6gamr382y-n58g2mqc97:102026:102026 [0] NCCL INFO Assigned NET plugin Socket to comm[32m [repeated 7x across cluster][0m
+[36m(WorkerDict pid=102026)[0m bolt-n6gamr382y-n58g2mqc97:102026:102026 [0] NCCL INFO GIN/Plugin: Could not find: libnccl-gin.so[32m [repeated 7x across cluster][0m
+[36m(WorkerDict pid=102026)[0m [2026-11-15 11:03:58] bolt-n6gamr382y-n58g2mqc97:102026:102026 [0] misc/ibvwrap.cc:173 NCCL WARN lib wrapper not initialized.[32m [repeated 7x across cluster][0m
+[36m(WorkerDict pid=102026)[0m bolt-n6gamr382y-n58g2mqc97:102026:102026 [0] NCCL INFO Failed to initialize any GIN plugin[32m [repeated 7x across cluster][0m
+[36m(WorkerDict pid=102026)[0m bolt-n6gamr382y-n58g2mqc97:102026:102026 [0] NCCL INFO Using network Socket[32m [repeated 7x across cluster][0m
+[36m(WorkerDict pid=102024)[0m bolt-n6gamr382y-n58g2mqc97:102024:102024 [0] NCCL INFO [Rank 4] ncclCommInitRankConfig comm 0x5ab0481a4750 rank 4 nranks 8 cudaDev 0 nvmlDev 4 busId 84000 commId 0x69810b5c4c4db883 - Init START[32m [repeated 7x across cluster][0m
+[36m(WorkerDict pid=102025)[0m bolt-n6gamr382y-n58g2mqc97:102025:102025 [0] NCCL INFO RAS client listening socket at 127.0.0.1<28028>[32m [repeated 7x across cluster][0m
+[36m(WorkerDict pid=102027)[0m bolt-n6gamr382y-n58g2mqc97:102027:102027 [0] NCCL INFO Bootstrap timings total 0.035546 (create 0.000039, send 0.000082, recv 0.003178, ring 0.004116, delay 0.000001)[32m [repeated 7x across cluster][0m
+[36m(WorkerDict pid=102027)[0m bolt-n6gamr382y-n58g2mqc97:102027:102027 [0] NCCL INFO MNNVL busId 0x8c000 fabric UUID 0.0 cliqueId 0x0 state 3 healthMask 0x0[32m [repeated 7x across cluster][0m
+[36m(WorkerDict pid=102027)[0m bolt-n6gamr382y-n58g2mqc97:102027:102027 [0] NCCL INFO NCCL_CROSS_NIC set by environment to 0.[32m [repeated 7x across cluster][0m
+[36m(WorkerDict pid=102027)[0m bolt-n6gamr382y-n58g2mqc97:102027:102027 [0] NCCL INFO ncclTopoGetCpuAffinity: Affinity for GPU 7 is 52-103,156-207. (GPU affinity = 52-103,156-207 ; CPU affinity = 0-207).[32m [repeated 7x across cluster][0m
+[36m(WorkerDict pid=102027)[0m bolt-n6gamr382y-n58g2mqc97:102027:102027 [0] NCCL INFO NCCL_NVLS_ENABLE set by environment to 0.[32m [repeated 7x across cluster][0m
+[36m(WorkerDict pid=102027)[0m bolt-n6gamr382y-n58g2mqc97:102027:102027 [0] NCCL INFO comm 0x5cb25f58a0a0 rank 7 nRanks 8 nNodes 1 localRanks 8 localRank 7 MNNVL 0[32m [repeated 7x across cluster][0m
+[36m(WorkerDict pid=102027)[0m bolt-n6gamr382y-n58g2mqc97:102027:102027 [0] NCCL INFO NCCL_MIN_NCHANNELS set by environment to 4.[32m [repeated 7x across cluster][0m
+[36m(WorkerDict pid=102027)[0m bolt-n6gamr382y-n58g2mqc97:102027:102027 [0] NCCL INFO Trees [0] -1/-1/-1->7->6 [1] -1/-1/-1->7->6 [2] -1/-1/-1->7->6 [3] -1/-1/-1->7->6 [4] -1/-1/-1->7->6 [5] -1/-1/-1->7->6 [6] -1/-1/-1->7->6 [7] -1/-1/-1->7->6 [8] -1/-1/-1->7->6 [9] -1/-1/-1->7->6 [10] -1/-1/-1->7->6 [11] -1/-1/-1->7->6 [12] -1/-1/-1->7->6 [13] -1/-1/-1->7->6 [14] -1/-1/-1->7->6 [15] -1/-1/-1->7->6 [16] -1/-1/-1->7->6 [17] -1/-1/-1->7->6 [18] -1/-1/-1->7->6 [19] -1/-1/-1->7->6 [20] -1/-1/-1->7->6 [21] -1/-1/-1->7->6 [22] -1/-1/-1->7->6 [23] -1/-1/-1->7->6[32m [repeated 7x across cluster][0m
+[36m(WorkerDict pid=102027)[0m bolt-n6gamr382y-n58g2mqc97:102027:102027 [0] NCCL INFO NCCL_BUFFSIZE set by environment to 8388608.[32m [repeated 7x across cluster][0m
+[36m(WorkerDict pid=102027)[0m bolt-n6gamr382y-n58g2mqc97:102027:102027 [0] NCCL INFO NCCL_P2P_NVL_CHUNKSIZE set by environment to 1048576.[32m [repeated 7x across cluster][0m
+[36m(WorkerDict pid=102027)[0m bolt-n6gamr382y-n58g2mqc97:102027:102027 [0] NCCL INFO P2P Chunksize set to 1048576[32m [repeated 7x across cluster][0m
+[36m(WorkerDict pid=102027)[0m bolt-n6gamr382y-n58g2mqc97:102027:102027 [0] NCCL INFO PROFILER/Plugin: Could not find: libnccl-profiler.so[32m [repeated 7x across cluster][0m
+[36m(WorkerDict pid=102027)[0m bolt-n6gamr382y-n58g2mqc97:102027:102027 [0] NCCL INFO Check P2P Type isAllDirectP2p 1 directMode 0 isAllCudaP2p 1[32m [repeated 7x across cluster][0m
+[36m(WorkerDict pid=102027)[0m bolt-n6gamr382y-n58g2mqc97:102027:102772 [0] NCCL INFO [Proxy Service] Device 0 CPU core 54[32m [repeated 7x across cluster][0m
+[36m(WorkerDict pid=102027)[0m bolt-n6gamr382y-n58g2mqc97:102027:102774 [0] NCCL INFO [Proxy Service UDS] Device 0 CPU core 196[32m [repeated 7x across cluster][0m
+[36m(WorkerDict pid=102027)[0m bolt-n6gamr382y-n58g2mqc97:102027:102027 [0] NCCL INFO NCCL_TUNER_PLUGIN set by environment to none[32m [repeated 7x across cluster][0m
+[36m(WorkerDict pid=102027)[0m bolt-n6gamr382y-n58g2mqc97:102027:102027 [0] NCCL INFO NCCL_PROTO set by environment to Simple[32m [repeated 7x across cluster][0m
+[36m(WorkerDict pid=102027)[0m bolt-n6gamr382y-n58g2mqc97:102027:102027 [0] NCCL INFO NCCL_ALGO set by environment to Ring[32m [repeated 7x across cluster][0m
+[36m(WorkerDict pid=102027)[0m bolt-n6gamr382y-n58g2mqc97:102027:102027 [0] NCCL INFO threadThresholds 8/8/64 | 64/8/64 | 512 | 512[32m [repeated 7x across cluster][0m
+[36m(WorkerDict pid=102027)[0m bolt-n6gamr382y-n58g2mqc97:102027:102027 [0] NCCL INFO 24 coll channels, 24 collnet channels, 0 nvls channels, 32 p2p channels, 32 p2p channels per peer[32m [repeated 7x across cluster][0m
+[36m(WorkerDict pid=102027)[0m bolt-n6gamr382y-n58g2mqc97:102027:102027 [0] NCCL INFO Symmetric VA size=80GB[32m [repeated 14x across cluster][0m
+[36m(WorkerDict pid=102027)[0m bolt-n6gamr382y-n58g2mqc97:102027:102027 [0] NCCL INFO ncclCommInitRankConfig comm 0x5cb25f58a0a0 rank 7 nranks 8 cudaDev 0 nvmlDev 7 busId 8c000 commId 0x69810b5c4c4db883 - Init COMPLETE[32m [repeated 7x across cluster][0m
+[36m(WorkerDict pid=102027)[0m bolt-n6gamr382y-n58g2mqc97:102027:102027 [0] NCCL INFO Init timings - ncclCommInitRankConfig: rank 7 nranks 8 total 1.39 (kernels 0.32, alloc 0.87, bootstrap 0.04, allgathers 0.00, topo 0.06, graphs 0.02, connections 0.07, rest 0.02)[32m [repeated 7x across cluster][0m
+[36m(WorkerDict pid=102025)[0m bolt-n6gamr382y-n58g2mqc97:102025:102025 [0] NCCL INFO Channel 23/0 : 5[5] -> 6[6] via P2P/CUMEM[32m [repeated 180x across cluster][0m
+[36m(WorkerDict pid=102027)[0m bolt-n6gamr382y-n58g2mqc97:102027:102027 [0] NCCL INFO Connected all rings, use ring PXN 0 GDR 1[32m [repeated 7x across cluster][0m
+[36m(WorkerDict pid=102026)[0m Loading weights:   0%|          | 0/693 [00:00<?, ?it/s][32m [repeated 7x across cluster][0m
+[36m(WorkerDict pid=102025)[0m Loading weights: 100%|██████████| 693/693 [00:00<00:00, 8175.23it/s][32m [repeated 5x across cluster][0m
+[36m(WorkerDict pid=102026)[0m [rank6]:[W1115 11:03:57.857912650 ProcessGroupNCCL.cpp:5276] Guessing device ID based on global rank. This can cause a hang if rank to GPU mapping is heterogeneous. You can specify device_id in init_process_group()[32m [repeated 7x across cluster][0m
+ERROR conda.cli.main_run:execute(149): `conda run python3 -m verl.trainer.main_ppo --config-name sdpo algorithm.adv_estimator=grpo data.train_files=./data/nq_hotpotqa_train/train.parquet data.val_files=./data/nq_hotpotqa_train/test.parquet data.train_data_num=null data.val_data_num=null data.return_raw_chat=true data.train_batch_size=512 data.val_batch_size=256 data.max_prompt_length=4096 data.max_response_length=500 data.max_start_length=2048 data.max_obs_length=500 data.shuffle_train_dataloader=True actor_rollout_ref.model.path=/root/Search-R1/models/Qwen3.6-35B-A3B actor_rollout_ref.model.enable_gradient_checkpointing=true actor_rollout_ref.model.use_remove_padding=False +actor_rollout_ref.model.trust_remote_code=True actor_rollout_ref.actor.optim.lr=1e-6 actor_rollout_ref.actor.optim.lr_warmup_steps_ratio=0.285 actor_rollout_ref.actor.use_kl_loss=false actor_rollout_ref.actor.ppo_mini_batch_size=256 actor_rollout_ref.actor.ppo_micro_batch_size=32 actor_rollout_ref.actor.fsdp_config.param_offload=true actor_rollout_ref.actor.fsdp_config.grad_offload=true actor_rollout_ref.actor.fsdp_config.optimizer_offload=true actor_rollout_ref.rollout.log_prob_micro_batch_size=64 actor_rollout_ref.rollout.tensor_model_parallel_size=2 actor_rollout_ref.rollout.name=vllm actor_rollout_ref.rollout.gpu_memory_utilization=0.5 actor_rollout_ref.rollout.load_format=safetensors actor_rollout_ref.rollout.enforce_eager=True actor_rollout_ref.rollout.free_cache_engine=True +actor_rollout_ref.rollout.max_model_len=4600 +actor_rollout_ref.rollout.language_model_only=True actor_rollout_ref.rollout.n=1 actor_rollout_ref.rollout.n_agent=5 algorithm.no_think_rl=false actor_rollout_ref.rollout.temperature=1 actor_rollout_ref.actor.state_masking=true reward_model.enable=false trainer.logger=['console','wandb'] +trainer.val_only=false trainer.val_before_train=true trainer.default_hdfs_dir=null trainer.n_gpus_per_node=8 trainer.nnodes=1 trainer.save_freq=100 trainer.test_freq=100 trainer.save_train_replay=true trainer.train_replay_path=res/train_replays/nq_sdpo-qwen3.6-35b-a3b-em-replay trainer.project_name=Search-R1 trainer.experiment_name=nq_sdpo-qwen3.6-35b-a3b-em-replay trainer.total_epochs=15 trainer.total_training_steps=1005 trainer.default_local_dir=verl_checkpoints/nq_sdpo-qwen3.6-35b-a3b-em-replay do_search=true max_turns=4 retriever.url=http://127.0.0.1:8000/retrieve retriever.topk=3` failed. (See above for error)

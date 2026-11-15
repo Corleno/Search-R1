@@ -86,12 +86,23 @@ def get_fsdp_wrap_policy(module, config=None, is_lora=False):
         policies.append(size_policy)
     elif fsdp_transformer_layer_cls_to_wrap is not None:
         transformer_cls_to_wrap = set()
+        missing = []
         for layer_class in fsdp_transformer_layer_cls_to_wrap:
             transformer_cls = get_module_class_from_name(module, layer_class)
             if transformer_cls is None:
-                raise Exception("Could not find the transformer layer class to wrap in the model.")
+                # Multimodal models (e.g. Qwen3.5/3.6 MoE) advertise both text and
+                # vision _no_split_modules; text-only CausalLM loads omit vision blocks.
+                missing.append(layer_class)
             else:
                 transformer_cls_to_wrap.add(transformer_cls)
+
+        if not transformer_cls_to_wrap:
+            raise Exception(
+                "Could not find the transformer layer class to wrap in the model. "
+                f"Looked for: {list(fsdp_transformer_layer_cls_to_wrap)}; missing: {missing}"
+            )
+        if missing:
+            print(f"FSDP wrap: skipping layer classes not present in module: {missing}")
 
         transformer_policy = functools.partial(
             transformer_auto_wrap_policy,

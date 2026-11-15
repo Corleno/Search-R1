@@ -1,0 +1,427 @@
+2026-11-15 10:35:43,945	INFO worker.py:2012 -- Started a local Ray instance.
+/root/miniconda3/envs/searchr1/lib/python3.9/site-packages/ray/_private/worker.py:2051: FutureWarning: Tip: In future versions of Ray, Ray will no longer override accelerator visible devices env var if num_gpus=0 or num_gpus=None (default). To enable this behavior and turn off this error message, set RAY_ACCEL_ENV_VAR_OVERRIDE_ON_ZERO=0
+  warnings.warn(
+[36m(main_task pid=22859)[0m {'actor_rollout_ref': {'actor': {'calculate_entropy': True,
+[36m(main_task pid=22859)[0m                                  'clip_ratio': 0.2,
+[36m(main_task pid=22859)[0m                                  'entropy_coeff': 0.001,
+[36m(main_task pid=22859)[0m                                  'fsdp_config': {'fsdp_size': -1,
+[36m(main_task pid=22859)[0m                                                  'grad_offload': True,
+[36m(main_task pid=22859)[0m                                                  'optimizer_offload': True,
+[36m(main_task pid=22859)[0m                                                  'param_offload': True,
+[36m(main_task pid=22859)[0m                                                  'wrap_policy': {'min_num_params': 0}},
+[36m(main_task pid=22859)[0m                                  'grad_clip': 1.0,
+[36m(main_task pid=22859)[0m                                  'kl_loss_coef': 0.001,
+[36m(main_task pid=22859)[0m                                  'kl_loss_type': 'low_var_kl',
+[36m(main_task pid=22859)[0m                                  'optim': {'lr': 1e-06,
+[36m(main_task pid=22859)[0m                                            'lr_warmup_steps_ratio': 0.285,
+[36m(main_task pid=22859)[0m                                            'min_lr_ratio': None,
+[36m(main_task pid=22859)[0m                                            'total_training_steps': -1,
+[36m(main_task pid=22859)[0m                                            'warmup_style': 'constant'},
+[36m(main_task pid=22859)[0m                                  'policy_loss': {'grpo_coef': 1.0,
+[36m(main_task pid=22859)[0m                                                  'loss_mode': 'sdpo',
+[36m(main_task pid=22859)[0m                                                  'sdpo_coef': 1.0},
+[36m(main_task pid=22859)[0m                                  'ppo_epochs': 1,
+[36m(main_task pid=22859)[0m                                  'ppo_max_token_len_per_gpu': 16384,
+[36m(main_task pid=22859)[0m                                  'ppo_micro_batch_size': 32,
+[36m(main_task pid=22859)[0m                                  'ppo_mini_batch_size': 256,
+[36m(main_task pid=22859)[0m                                  'self_distillation': {'alpha': 1.0,
+[36m(main_task pid=22859)[0m                                                        'debug_print_inputs': False,
+[36m(main_task pid=22859)[0m                                                        'distillation_add_tail': True,
+[36m(main_task pid=22859)[0m                                                        'distillation_topk': None,
+[36m(main_task pid=22859)[0m                                                        'dont_reprompt_on_self_success': True,
+[36m(main_task pid=22859)[0m                                                        'environment_feedback_only_without_solution': True,
+[36m(main_task pid=22859)[0m                                                        'feedback_template': '\n'
+[36m(main_task pid=22859)[0m                                                                             'The '
+[36m(main_task pid=22859)[0m                                                                             'following '
+[36m(main_task pid=22859)[0m                                                                             'is '
+[36m(main_task pid=22859)[0m                                                                             'feedback '
+[36m(main_task pid=22859)[0m                                                                             'from '
+[36m(main_task pid=22859)[0m                                                                             'your '
+[36m(main_task pid=22859)[0m                                                                             'unsuccessful '
+[36m(main_task pid=22859)[0m                                                                             'earlier '
+[36m(main_task pid=22859)[0m                                                                             'attempt:\n'
+[36m(main_task pid=22859)[0m                                                                             '\n'
+[36m(main_task pid=22859)[0m                                                                             '{feedback_raw}',
+[36m(main_task pid=22859)[0m                                                        'feedback_template_file': None,
+[36m(main_task pid=22859)[0m                                                        'filter_reprompt_before_update': True,
+[36m(main_task pid=22859)[0m                                                        'full_logit_distillation': False,
+[36m(main_task pid=22859)[0m                                                        'include_environment_feedback': False,
+[36m(main_task pid=22859)[0m                                                        'max_reprompt_len': 10240,
+[36m(main_task pid=22859)[0m                                                        'ppo_clip': False,
+[36m(main_task pid=22859)[0m                                                        'remove_thinking_from_demonstration': True,
+[36m(main_task pid=22859)[0m                                                        'reprompt_template': '{prompt}{solution}{feedback}\n'
+[36m(main_task pid=22859)[0m                                                                             '\n'
+[36m(main_task pid=22859)[0m                                                                             'Correctly '
+[36m(main_task pid=22859)[0m                                                                             'solve '
+[36m(main_task pid=22859)[0m                                                                             'the '
+[36m(main_task pid=22859)[0m                                                                             'original '
+[36m(main_task pid=22859)[0m                                                                             'question.',
+[36m(main_task pid=22859)[0m                                                        'reprompt_template_file': None,
+[36m(main_task pid=22859)[0m                                                        'solution_template': '\n'
+[36m(main_task pid=22859)[0m                                                                             'Correct '
+[36m(main_task pid=22859)[0m                                                                             'solution:\n'
+[36m(main_task pid=22859)[0m                                                                             '\n'
+[36m(main_task pid=22859)[0m                                                                             '{successful_previous_attempt}',
+[36m(main_task pid=22859)[0m                                                        'solution_template_file': None,
+[36m(main_task pid=22859)[0m                                                        'success_reward_threshold': 0.5,
+[36m(main_task pid=22859)[0m                                                        'teacher_regularization': 'actor',
+[36m(main_task pid=22859)[0m                                                        'teacher_update_rate': 0.05},
+[36m(main_task pid=22859)[0m                                  'shuffle': False,
+[36m(main_task pid=22859)[0m                                  'state_masking': True,
+[36m(main_task pid=22859)[0m                                  'strategy': 'fsdp',
+[36m(main_task pid=22859)[0m                                  'ulysses_sequence_parallel_size': 1,
+[36m(main_task pid=22859)[0m                                  'use_dynamic_bsz': False,
+[36m(main_task pid=22859)[0m                                  'use_kl_loss': False},
+[36m(main_task pid=22859)[0m                        'hybrid_engine': True,
+[36m(main_task pid=22859)[0m                        'model': {'enable_gradient_checkpointing': True,
+[36m(main_task pid=22859)[0m                                  'external_lib': None,
+[36m(main_task pid=22859)[0m                                  'override_config': {},
+[36m(main_task pid=22859)[0m                                  'path': '/root/Search-R1/models/Qwen3.6-35B-A3B',
+[36m(main_task pid=22859)[0m                                  'use_remove_padding': True},
+[36m(main_task pid=22859)[0m                        'ref': {'fsdp_config': {'fsdp_size': -1,
+[36m(main_task pid=22859)[0m                                                'param_offload': True,
+[36m(main_task pid=22859)[0m                                                'wrap_policy': {'min_num_params': 0}},
+[36m(main_task pid=22859)[0m                                'log_prob_max_token_len_per_gpu': 16384,
+[36m(main_task pid=22859)[0m                                'log_prob_micro_batch_size': 128,
+[36m(main_task pid=22859)[0m                                'log_prob_use_dynamic_bsz': False,
+[36m(main_task pid=22859)[0m                                'model': {'path': '/root/Search-R1/models/Qwen3.6-35B-A3B'},
+[36m(main_task pid=22859)[0m                                'ulysses_sequence_parallel_size': 1},
+[36m(main_task pid=22859)[0m                        'rollout': {'do_sample': True,
+[36m(main_task pid=22859)[0m                                    'dtype': 'bfloat16',
+[36m(main_task pid=22859)[0m                                    'enforce_eager': True,
+[36m(main_task pid=22859)[0m                                    'free_cache_engine': True,
+[36m(main_task pid=22859)[0m                                    'gpu_memory_utilization': 0.5,
+[36m(main_task pid=22859)[0m                                    'ignore_eos': False,
+[36m(main_task pid=22859)[0m                                    'load_format': 'dummy_dtensor',
+[36m(main_task pid=22859)[0m                                    'log_prob_max_token_len_per_gpu': 16384,
+[36m(main_task pid=22859)[0m                                    'log_prob_micro_batch_size': 64,
+[36m(main_task pid=22859)[0m                                    'log_prob_top_k': 0,
+[36m(main_task pid=22859)[0m                                    'log_prob_use_dynamic_bsz': False,
+[36m(main_task pid=22859)[0m                                    'max_num_batched_tokens': 8192,
+[36m(main_task pid=22859)[0m                                    'max_num_seqs': 1024,
+[36m(main_task pid=22859)[0m                                    'n': 1,
+[36m(main_task pid=22859)[0m                                    'n_agent': 5,
+[36m(main_task pid=22859)[0m                                    'name': 'vllm',
+[36m(main_task pid=22859)[0m                                    'prompt_length': 4096,
+[36m(main_task pid=22859)[0m                                    'response_length': 500,
+[36m(main_task pid=22859)[0m                                    'reward_weight_mode': 'student_p',
+[36m(main_task pid=22859)[0m                                    'teacher_temperature': 1.0,
+[36m(main_task pid=22859)[0m                                    'temperature': 1,
+[36m(main_task pid=22859)[0m                                    'tensor_model_parallel_size': 2,
+[36m(main_task pid=22859)[0m                                    'top_k': -1,
+[36m(main_task pid=22859)[0m                                    'top_k_strategy': 'only_stu',
+[36m(main_task pid=22859)[0m                                    'top_p': 0.95}},
+[36m(main_task pid=22859)[0m  'algorithm': {'adv_estimator': 'grpo',
+[36m(main_task pid=22859)[0m                'gamma': 1.0,
+[36m(main_task pid=22859)[0m                'grpo_outcome_weight': 1.0,
+[36m(main_task pid=22859)[0m                'kl_ctrl': {'kl_coef': 0.001, 'type': 'fixed'},
+[36m(main_task pid=22859)[0m                'kl_penalty': 'kl',
+[36m(main_task pid=22859)[0m                'lam': 1.0,
+[36m(main_task pid=22859)[0m                'no_think_rl': False,
+[36m(main_task pid=22859)[0m                'state_masking': {'end_state_marker': '</information>',
+[36m(main_task pid=22859)[0m                                  'start_state_marker': '<information>'}},
+[36m(main_task pid=22859)[0m  'critic': {'cliprange_value': 0.5,
+[36m(main_task pid=22859)[0m             'forward_max_token_len_per_gpu': 32768,
+[36m(main_task pid=22859)[0m             'forward_micro_batch_size': 64,
+[36m(main_task pid=22859)[0m             'grad_clip': 1.0,
+[36m(main_task pid=22859)[0m             'model': {'enable_gradient_checkpointing': False,
+[36m(main_task pid=22859)[0m                       'external_lib': None,
+[36m(main_task pid=22859)[0m                       'fsdp_config': {'fsdp_size': -1,
+[36m(main_task pid=22859)[0m                                       'grad_offload': False,
+[36m(main_task pid=22859)[0m                                       'optimizer_offload': False,
+[36m(main_task pid=22859)[0m                                       'param_offload': False,
+[36m(main_task pid=22859)[0m                                       'wrap_policy': {'min_num_params': 0}},
+[36m(main_task pid=22859)[0m                       'override_config': {},
+[36m(main_task pid=22859)[0m                       'path': '~/models/deepseek-llm-7b-chat',
+[36m(main_task pid=22859)[0m                       'tokenizer_path': '/root/Search-R1/models/Qwen3.6-35B-A3B',
+[36m(main_task pid=22859)[0m                       'use_remove_padding': False},
+[36m(main_task pid=22859)[0m             'optim': {'lr': 1e-05,
+[36m(main_task pid=22859)[0m                       'lr_warmup_steps_ratio': 0.0,
+[36m(main_task pid=22859)[0m                       'min_lr_ratio': None,
+[36m(main_task pid=22859)[0m                       'total_training_steps': -1,
+[36m(main_task pid=22859)[0m                       'warmup_style': 'constant'},
+[36m(main_task pid=22859)[0m             'ppo_epochs': 1,
+[36m(main_task pid=22859)[0m             'ppo_max_token_len_per_gpu': 32768,
+[36m(main_task pid=22859)[0m             'ppo_micro_batch_size': 64,
+[36m(main_task pid=22859)[0m             'ppo_mini_batch_size': 256,
+[36m(main_task pid=22859)[0m             'shuffle': False,
+[36m(main_task pid=22859)[0m             'strategy': 'fsdp',
+[36m(main_task pid=22859)[0m             'ulysses_sequence_parallel_size': 1,
+[36m(main_task pid=22859)[0m             'use_dynamic_bsz': False},
+[36m(main_task pid=22859)[0m  'data': {'max_obs_length': 500,
+[36m(main_task pid=22859)[0m           'max_prompt_length': 4096,
+[36m(main_task pid=22859)[0m           'max_response_length': 500,
+[36m(main_task pid=22859)[0m           'max_start_length': 2048,
+[36m(main_task pid=22859)[0m           'prompt_key': 'prompt',
+[36m(main_task pid=22859)[0m           'return_raw_chat': True,
+[36m(main_task pid=22859)[0m           'return_raw_input_ids': False,
+[36m(main_task pid=22859)[0m           'shuffle_train_dataloader': True,
+[36m(main_task pid=22859)[0m           'tokenizer': None,
+[36m(main_task pid=22859)[0m           'train_batch_size': 512,
+[36m(main_task pid=22859)[0m           'train_data_num': None,
+[36m(main_task pid=22859)[0m           'train_files': './data/nq_hotpotqa_train/train.parquet',
+[36m(main_task pid=22859)[0m           'val_batch_size': 256,
+[36m(main_task pid=22859)[0m           'val_data_num': None,
+[36m(main_task pid=22859)[0m           'val_files': './data/nq_hotpotqa_train/test.parquet'},
+[36m(main_task pid=22859)[0m  'do_search': True,
+[36m(main_task pid=22859)[0m  'max_turns': 4,
+[36m(main_task pid=22859)[0m  'retriever': {'topk': 3, 'url': 'http://127.0.0.1:8000/retrieve'},
+[36m(main_task pid=22859)[0m  'reward_model': {'enable': False,
+[36m(main_task pid=22859)[0m                   'final_format_score': 0,
+[36m(main_task pid=22859)[0m                   'forward_max_token_len_per_gpu': 32768,
+[36m(main_task pid=22859)[0m                   'max_length': None,
+[36m(main_task pid=22859)[0m                   'micro_batch_size': 64,
+[36m(main_task pid=22859)[0m                   'model': {'external_lib': None,
+[36m(main_task pid=22859)[0m                             'fsdp_config': {'min_num_params': 0,
+[36m(main_task pid=22859)[0m                                             'param_offload': False},
+[36m(main_task pid=22859)[0m                             'input_tokenizer': '/root/Search-R1/models/Qwen3.6-35B-A3B',
+[36m(main_task pid=22859)[0m                             'path': '~/models/FsfairX-LLaMA3-RM-v0.1',
+[36m(main_task pid=22859)[0m                             'use_remove_padding': False},
+[36m(main_task pid=22859)[0m                   'retrieval_score': 0,
+[36m(main_task pid=22859)[0m                   'strategy': 'fsdp',
+[36m(main_task pid=22859)[0m                   'structure_format_score': 0,
+[36m(main_task pid=22859)[0m                   'ulysses_sequence_parallel_size': 1,
+[36m(main_task pid=22859)[0m                   'use_dynamic_bsz': False,
+[36m(main_task pid=22859)[0m                   'use_opd_teacher': False},
+[36m(main_task pid=22859)[0m  'trainer': {'critic_warmup': 0,
+[36m(main_task pid=22859)[0m              'default_hdfs_dir': None,
+[36m(main_task pid=22859)[0m              'default_local_dir': 'verl_checkpoints/nq_sdpo-qwen3.6-35b-a3b-em-replay',
+[36m(main_task pid=22859)[0m              'eval_from_replay': False,
+[36m(main_task pid=22859)[0m              'eval_prompt_mode': 'student',
+[36m(main_task pid=22859)[0m              'eval_replay_dedupe_key': 'index',
+[36m(main_task pid=22859)[0m              'eval_replay_dedupe_strategy': 'latest_step',
+[36m(main_task pid=22859)[0m              'eval_replay_limit': None,
+[36m(main_task pid=22859)[0m              'eval_replay_output_path': None,
+[36m(main_task pid=22859)[0m              'eval_replay_path': None,
+[36m(main_task pid=22859)[0m              'eval_replay_require_distillation_mask': False,
+[36m(main_task pid=22859)[0m              'experiment_name': 'nq_sdpo-qwen3.6-35b-a3b-em-replay',
+[36m(main_task pid=22859)[0m              'logger': ['console', 'wandb'],
+[36m(main_task pid=22859)[0m              'n_gpus_per_node': 8,
+[36m(main_task pid=22859)[0m              'nnodes': 1,
+[36m(main_task pid=22859)[0m              'project_name': 'Search-R1',
+[36m(main_task pid=22859)[0m              'save_eval_replay': False,
+[36m(main_task pid=22859)[0m              'save_freq': 100,
+[36m(main_task pid=22859)[0m              'save_train_replay': True,
+[36m(main_task pid=22859)[0m              'save_val_replay': False,
+[36m(main_task pid=22859)[0m              'test_freq': 100,
+[36m(main_task pid=22859)[0m              'total_epochs': 15,
+[36m(main_task pid=22859)[0m              'total_training_steps': 1005,
+[36m(main_task pid=22859)[0m              'train_replay_path': 'res/train_replays/nq_sdpo-qwen3.6-35b-a3b-em-replay',
+[36m(main_task pid=22859)[0m              'val_before_train': True,
+[36m(main_task pid=22859)[0m              'val_only': False,
+[36m(main_task pid=22859)[0m              'val_replay_path': None}}
+[36m(main_task pid=22859)[0m /root/miniconda3/envs/searchr1/lib/python3.9/site-packages/vllm/connections.py:8: RuntimeWarning: Failed to read commit hash:
+[36m(main_task pid=22859)[0m No module named 'vllm._version'
+[36m(main_task pid=22859)[0m   from vllm.version import __version__ as VLLM_VERSION
+[36m(main_task pid=22859)[0m original dataset len: 51713
+[36m(main_task pid=22859)[0m filter dataset len: 51713
+[36m(main_task pid=22859)[0m filtered validation dataset size: 51713
+[36m(main_task pid=22859)[0m original dataset len: 169615
+[36m(main_task pid=22859)[0m filter dataset len: 169615
+[36m(main_task pid=22859)[0m filtered training dataset size: 169615
+[36m(main_task pid=22859)[0m Size of train dataloader: 331
+[36m(main_task pid=22859)[0m Size of val dataloader: 202
+[36m(main_task pid=22859)[0m Total training steps: 1005
+[36m(main_task pid=22859)[0m wandb: [wandb.login()] Using explicit session credentials for https://api.wandb.ai.
+[36m(main_task pid=22859)[0m wandb: No netrc file found, creating one.
+[36m(main_task pid=22859)[0m wandb: Appending key for api.wandb.ai to your netrc file: /root/.netrc
+[36m(main_task pid=22859)[0m wandb: Currently logged in as: mengrui6351 to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+[36m(main_task pid=22859)[0m wandb: setting up run pd1erimk
+[36m(main_task pid=22859)[0m wandb: Tracking run with wandb version 0.26.1
+[36m(main_task pid=22859)[0m wandb: Run data is saved locally in /root/Search-R1/wandb/run-20261115_103557-pd1erimk
+[36m(main_task pid=22859)[0m wandb: Run `wandb offline` to turn off syncing.
+[36m(main_task pid=22859)[0m wandb: Syncing run nq_sdpo-qwen3.6-35b-a3b-em-replay
+[36m(main_task pid=22859)[0m wandb: ⭐️ View project at https://wandb.ai/mengrui6351/Search-R1
+[36m(main_task pid=22859)[0m wandb: 🚀 View run at https://wandb.ai/mengrui6351/Search-R1/runs/pd1erimk
+[36m(main_task pid=22859)[0m wandb: Detected [openai] in use.
+[36m(main_task pid=22859)[0m wandb: Use W&B Weave for improved LLM call tracing. Install Weave with `pip install weave` then add `import weave` to the top of your script.
+[36m(main_task pid=22859)[0m wandb: For more information, check out the docs at: https://weave-docs.wandb.ai
+[36m(main_task pid=22859)[0m Using LocalLogger is deprecated. The constructor API will change 
+[36m(pid=24019)[0m /root/miniconda3/envs/searchr1/lib/python3.9/site-packages/vllm/connections.py:8: RuntimeWarning: Failed to read commit hash:
+[36m(pid=24019)[0m No module named 'vllm._version'
+[36m(pid=24019)[0m   from vllm.version import __version__ as VLLM_VERSION
+[36m(pid=24345)[0m /root/miniconda3/envs/searchr1/lib/python3.9/site-packages/vllm/connections.py:8: RuntimeWarning: Failed to read commit hash:
+[36m(pid=24345)[0m No module named 'vllm._version'
+[36m(pid=24345)[0m   from vllm.version import __version__ as VLLM_VERSION
+[36m(pid=24341)[0m /root/miniconda3/envs/searchr1/lib/python3.9/site-packages/vllm/connections.py:8: RuntimeWarning: Failed to read commit hash:
+[36m(pid=24341)[0m No module named 'vllm._version'
+[36m(pid=24341)[0m   from vllm.version import __version__ as VLLM_VERSION
+[36m(WorkerDict pid=24345)[0m [W1115 10:36:09.853217543 CUDAAllocatorConfig.h:28] Warning: expandable_segments not supported on this platform (function operator())
+Error executing job with overrides: ['algorithm.adv_estimator=grpo', 'data.train_files=./data/nq_hotpotqa_train/train.parquet', 'data.val_files=./data/nq_hotpotqa_train/test.parquet', 'data.train_data_num=null', 'data.val_data_num=null', 'data.return_raw_chat=true', 'data.train_batch_size=512', 'data.val_batch_size=256', 'data.max_prompt_length=4096', 'data.max_response_length=500', 'data.max_start_length=2048', 'data.max_obs_length=500', 'data.shuffle_train_dataloader=True', 'actor_rollout_ref.model.path=/root/Search-R1/models/Qwen3.6-35B-A3B', 'actor_rollout_ref.model.enable_gradient_checkpointing=true', 'actor_rollout_ref.model.use_remove_padding=True', 'actor_rollout_ref.actor.optim.lr=1e-6', 'actor_rollout_ref.actor.optim.lr_warmup_steps_ratio=0.285', 'actor_rollout_ref.actor.use_kl_loss=false', 'actor_rollout_ref.actor.ppo_mini_batch_size=256', 'actor_rollout_ref.actor.ppo_micro_batch_size=32', 'actor_rollout_ref.actor.fsdp_config.param_offload=true', 'actor_rollout_ref.actor.fsdp_config.grad_offload=true', 'actor_rollout_ref.actor.fsdp_config.optimizer_offload=true', 'actor_rollout_ref.rollout.log_prob_micro_batch_size=64', 'actor_rollout_ref.rollout.tensor_model_parallel_size=2', 'actor_rollout_ref.rollout.name=vllm', 'actor_rollout_ref.rollout.gpu_memory_utilization=0.5', 'actor_rollout_ref.rollout.n=1', 'actor_rollout_ref.rollout.n_agent=5', 'algorithm.no_think_rl=false', 'actor_rollout_ref.rollout.temperature=1', 'actor_rollout_ref.actor.state_masking=true', 'reward_model.enable=false', "trainer.logger=['console','wandb']", '+trainer.val_only=false', 'trainer.val_before_train=true', 'trainer.default_hdfs_dir=null', 'trainer.n_gpus_per_node=8', 'trainer.nnodes=1', 'trainer.save_freq=100', 'trainer.test_freq=100', 'trainer.save_train_replay=true', 'trainer.train_replay_path=res/train_replays/nq_sdpo-qwen3.6-35b-a3b-em-replay', 'trainer.project_name=Search-R1', 'trainer.experiment_name=nq_sdpo-qwen3.6-35b-a3b-em-replay', 'trainer.total_epochs=15', 'trainer.total_training_steps=1005', 'trainer.default_local_dir=verl_checkpoints/nq_sdpo-qwen3.6-35b-a3b-em-replay', 'do_search=true', 'max_turns=4', 'retriever.url=http://127.0.0.1:8000/retrieve', 'retriever.topk=3']
+[36m(main_task pid=22859)[0m Unhandled error (suppress with 'RAY_IGNORE_UNHANDLED_ERRORS=1'): [36mray::WorkerDict.ref_init_model()[39m (pid=24340, ip=240.19.50.206, actor_id=b9288692c123ab3d75819cc001000000, repr=<verl.single_controller.ray.base.WorkerDict object at 0x793d6704f6a0>)
+[36m(main_task pid=22859)[0m   File "/root/miniconda3/envs/searchr1/lib/python3.9/site-packages/transformers/models/auto/configuration_auto.py", line 740, in __getitem__
+[36m(main_task pid=22859)[0m     raise KeyError(key)
+[36m(main_task pid=22859)[0m KeyError: 'qwen3_5_moe'
+[36m(main_task pid=22859)[0m 
+[36m(main_task pid=22859)[0m During handling of the above exception, another exception occurred:
+[36m(main_task pid=22859)[0m 
+[36m(main_task pid=22859)[0m [36mray::WorkerDict.ref_init_model()[39m (pid=24340, ip=240.19.50.206, actor_id=b9288692c123ab3d75819cc001000000, repr=<verl.single_controller.ray.base.WorkerDict object at 0x793d6704f6a0>)
+[36m(main_task pid=22859)[0m   File "/root/Search-R1/verl/single_controller/ray/base.py", line 399, in func
+[36m(main_task pid=22859)[0m     return getattr(self.worker_dict[key], name)(*args, **kwargs)
+[36m(main_task pid=22859)[0m   File "/root/Search-R1/verl/single_controller/base/decorator.py", line 404, in inner
+[36m(main_task pid=22859)[0m     return func(*args, **kwargs)
+[36m(main_task pid=22859)[0m   File "/root/Search-R1/verl/workers/fsdp_workers.py", line 337, in init_model
+[36m(main_task pid=22859)[0m     self.ref_module_fsdp = self._build_model_optimizer(model_path=ref_model_path,
+[36m(main_task pid=22859)[0m   File "/root/Search-R1/verl/workers/fsdp_workers.py", line 139, in _build_model_optimizer
+[36m(main_task pid=22859)[0m     actor_model_config = AutoConfig.from_pretrained(local_path, trust_remote_code=trust_remote_code)
+[36m(main_task pid=22859)[0m   File "/root/miniconda3/envs/searchr1/lib/python3.9/site-packages/transformers/models/auto/configuration_auto.py", line 1040, in from_pretrained
+[36m(main_task pid=22859)[0m     raise ValueError(
+[36m(main_task pid=22859)[0m ValueError: The checkpoint you are trying to load has model type `qwen3_5_moe` but Transformers does not recognize this architecture. This could be because of an issue with the checkpoint, or because your version of Transformers is out of date.
+[36m(main_task pid=22859)[0m Unhandled error (suppress with 'RAY_IGNORE_UNHANDLED_ERRORS=1'): [36mray::WorkerDict.ref_init_model()[39m (pid=24342, ip=240.19.50.206, actor_id=c1e53365c4fde27da3d664fd01000000, repr=<verl.single_controller.ray.base.WorkerDict object at 0x7de9bce281f0>)
+[36m(main_task pid=22859)[0m   File "/root/miniconda3/envs/searchr1/lib/python3.9/site-packages/transformers/models/auto/configuration_auto.py", line 740, in __getitem__
+[36m(main_task pid=22859)[0m     raise KeyError(key)
+[36m(main_task pid=22859)[0m KeyError: 'qwen3_5_moe'
+[36m(main_task pid=22859)[0m 
+[36m(main_task pid=22859)[0m During handling of the above exception, another exception occurred:
+[36m(main_task pid=22859)[0m 
+[36m(main_task pid=22859)[0m [36mray::WorkerDict.ref_init_model()[39m (pid=24342, ip=240.19.50.206, actor_id=c1e53365c4fde27da3d664fd01000000, repr=<verl.single_controller.ray.base.WorkerDict object at 0x7de9bce281f0>)
+[36m(main_task pid=22859)[0m   File "/root/Search-R1/verl/single_controller/ray/base.py", line 399, in func
+[36m(main_task pid=22859)[0m     return getattr(self.worker_dict[key], name)(*args, **kwargs)
+[36m(main_task pid=22859)[0m   File "/root/Search-R1/verl/single_controller/base/decorator.py", line 404, in inner
+[36m(main_task pid=22859)[0m     return func(*args, **kwargs)
+[36m(main_task pid=22859)[0m   File "/root/Search-R1/verl/workers/fsdp_workers.py", line 337, in init_model
+[36m(main_task pid=22859)[0m     self.ref_module_fsdp = self._build_model_optimizer(model_path=ref_model_path,
+[36m(main_task pid=22859)[0m   File "/root/Search-R1/verl/workers/fsdp_workers.py", line 139, in _build_model_optimizer
+[36m(main_task pid=22859)[0m     actor_model_config = AutoConfig.from_pretrained(local_path, trust_remote_code=trust_remote_code)
+[36m(main_task pid=22859)[0m   File "/root/miniconda3/envs/searchr1/lib/python3.9/site-packages/transformers/models/auto/configuration_auto.py", line 1040, in from_pretrained
+[36m(main_task pid=22859)[0m     raise ValueError(
+[36m(main_task pid=22859)[0m ValueError: The checkpoint you are trying to load has model type `qwen3_5_moe` but Transformers does not recognize this architecture. This could be because of an issue with the checkpoint, or because your version of Transformers is out of date.
+[36m(main_task pid=22859)[0m Unhandled error (suppress with 'RAY_IGNORE_UNHANDLED_ERRORS=1'): [36mray::WorkerDict.ref_init_model()[39m (pid=24339, ip=240.19.50.206, actor_id=568191a91afc2af3135a52cc01000000, repr=<verl.single_controller.ray.base.WorkerDict object at 0x7aff8123de50>)
+[36m(main_task pid=22859)[0m   File "/root/miniconda3/envs/searchr1/lib/python3.9/site-packages/transformers/models/auto/configuration_auto.py", line 740, in __getitem__
+[36m(main_task pid=22859)[0m     raise KeyError(key)
+[36m(main_task pid=22859)[0m KeyError: 'qwen3_5_moe'
+[36m(main_task pid=22859)[0m 
+[36m(main_task pid=22859)[0m During handling of the above exception, another exception occurred:
+[36m(main_task pid=22859)[0m 
+[36m(main_task pid=22859)[0m [36mray::WorkerDict.ref_init_model()[39m (pid=24339, ip=240.19.50.206, actor_id=568191a91afc2af3135a52cc01000000, repr=<verl.single_controller.ray.base.WorkerDict object at 0x7aff8123de50>)
+[36m(main_task pid=22859)[0m   File "/root/Search-R1/verl/single_controller/ray/base.py", line 399, in func
+[36m(main_task pid=22859)[0m     return getattr(self.worker_dict[key], name)(*args, **kwargs)
+[36m(main_task pid=22859)[0m   File "/root/Search-R1/verl/single_controller/base/decorator.py", line 404, in inner
+[36m(main_task pid=22859)[0m     return func(*args, **kwargs)
+[36m(main_task pid=22859)[0m   File "/root/Search-R1/verl/workers/fsdp_workers.py", line 337, in init_model
+[36m(main_task pid=22859)[0m     self.ref_module_fsdp = self._build_model_optimizer(model_path=ref_model_path,
+[36m(main_task pid=22859)[0m   File "/root/Search-R1/verl/workers/fsdp_workers.py", line 139, in _build_model_optimizer
+[36m(main_task pid=22859)[0m     actor_model_config = AutoConfig.from_pretrained(local_path, trust_remote_code=trust_remote_code)
+[36m(main_task pid=22859)[0m   File "/root/miniconda3/envs/searchr1/lib/python3.9/site-packages/transformers/models/auto/configuration_auto.py", line 1040, in from_pretrained
+[36m(main_task pid=22859)[0m     raise ValueError(
+[36m(main_task pid=22859)[0m ValueError: The checkpoint you are trying to load has model type `qwen3_5_moe` but Transformers does not recognize this architecture. This could be because of an issue with the checkpoint, or because your version of Transformers is out of date.
+[36m(main_task pid=22859)[0m Unhandled error (suppress with 'RAY_IGNORE_UNHANDLED_ERRORS=1'): [36mray::WorkerDict.ref_init_model()[39m (pid=24341, ip=240.19.50.206, actor_id=62c82ee8d9c09d7bf342b9bc01000000, repr=<verl.single_controller.ray.base.WorkerDict object at 0x78f9ef3906a0>)
+[36m(main_task pid=22859)[0m   File "/root/miniconda3/envs/searchr1/lib/python3.9/site-packages/transformers/models/auto/configuration_auto.py", line 740, in __getitem__
+[36m(main_task pid=22859)[0m     raise KeyError(key)
+[36m(main_task pid=22859)[0m KeyError: 'qwen3_5_moe'
+[36m(main_task pid=22859)[0m 
+[36m(main_task pid=22859)[0m During handling of the above exception, another exception occurred:
+[36m(main_task pid=22859)[0m 
+[36m(main_task pid=22859)[0m [36mray::WorkerDict.ref_init_model()[39m (pid=24341, ip=240.19.50.206, actor_id=62c82ee8d9c09d7bf342b9bc01000000, repr=<verl.single_controller.ray.base.WorkerDict object at 0x78f9ef3906a0>)
+[36m(main_task pid=22859)[0m   File "/root/Search-R1/verl/single_controller/ray/base.py", line 399, in func
+[36m(main_task pid=22859)[0m     return getattr(self.worker_dict[key], name)(*args, **kwargs)
+[36m(main_task pid=22859)[0m   File "/root/Search-R1/verl/single_controller/base/decorator.py", line 404, in inner
+[36m(main_task pid=22859)[0m     return func(*args, **kwargs)
+[36m(main_task pid=22859)[0m   File "/root/Search-R1/verl/workers/fsdp_workers.py", line 337, in init_model
+[36m(main_task pid=22859)[0m     self.ref_module_fsdp = self._build_model_optimizer(model_path=ref_model_path,
+[36m(main_task pid=22859)[0m   File "/root/Search-R1/verl/workers/fsdp_workers.py", line 139, in _build_model_optimizer
+[36m(main_task pid=22859)[0m     actor_model_config = AutoConfig.from_pretrained(local_path, trust_remote_code=trust_remote_code)
+[36m(main_task pid=22859)[0m   File "/root/miniconda3/envs/searchr1/lib/python3.9/site-packages/transformers/models/auto/configuration_auto.py", line 1040, in from_pretrained
+[36m(main_task pid=22859)[0m     raise ValueError(
+[36m(main_task pid=22859)[0m ValueError: The checkpoint you are trying to load has model type `qwen3_5_moe` but Transformers does not recognize this architecture. This could be because of an issue with the checkpoint, or because your version of Transformers is out of date.
+[36m(main_task pid=22859)[0m Unhandled error (suppress with 'RAY_IGNORE_UNHANDLED_ERRORS=1'): [36mray::WorkerDict.ref_init_model()[39m (pid=24344, ip=240.19.50.206, actor_id=a4ae2d0413b2a8def361408501000000, repr=<verl.single_controller.ray.base.WorkerDict object at 0x7c708e2686a0>)
+[36m(main_task pid=22859)[0m   File "/root/miniconda3/envs/searchr1/lib/python3.9/site-packages/transformers/models/auto/configuration_auto.py", line 740, in __getitem__
+[36m(main_task pid=22859)[0m     raise KeyError(key)
+[36m(main_task pid=22859)[0m KeyError: 'qwen3_5_moe'
+[36m(main_task pid=22859)[0m 
+[36m(main_task pid=22859)[0m During handling of the above exception, another exception occurred:
+[36m(main_task pid=22859)[0m 
+[36m(main_task pid=22859)[0m [36mray::WorkerDict.ref_init_model()[39m (pid=24344, ip=240.19.50.206, actor_id=a4ae2d0413b2a8def361408501000000, repr=<verl.single_controller.ray.base.WorkerDict object at 0x7c708e2686a0>)
+[36m(main_task pid=22859)[0m   File "/root/Search-R1/verl/single_controller/ray/base.py", line 399, in func
+[36m(main_task pid=22859)[0m     return getattr(self.worker_dict[key], name)(*args, **kwargs)
+[36m(main_task pid=22859)[0m   File "/root/Search-R1/verl/single_controller/base/decorator.py", line 404, in inner
+[36m(main_task pid=22859)[0m     return func(*args, **kwargs)
+[36m(main_task pid=22859)[0m   File "/root/Search-R1/verl/workers/fsdp_workers.py", line 337, in init_model
+[36m(main_task pid=22859)[0m     self.ref_module_fsdp = self._build_model_optimizer(model_path=ref_model_path,
+[36m(main_task pid=22859)[0m   File "/root/Search-R1/verl/workers/fsdp_workers.py", line 139, in _build_model_optimizer
+[36m(main_task pid=22859)[0m     actor_model_config = AutoConfig.from_pretrained(local_path, trust_remote_code=trust_remote_code)
+[36m(main_task pid=22859)[0m   File "/root/miniconda3/envs/searchr1/lib/python3.9/site-packages/transformers/models/auto/configuration_auto.py", line 1040, in from_pretrained
+[36m(main_task pid=22859)[0m     raise ValueError(
+[36m(main_task pid=22859)[0m ValueError: The checkpoint you are trying to load has model type `qwen3_5_moe` but Transformers does not recognize this architecture. This could be because of an issue with the checkpoint, or because your version of Transformers is out of date.
+[36m(main_task pid=22859)[0m Unhandled error (suppress with 'RAY_IGNORE_UNHANDLED_ERRORS=1'): [36mray::WorkerDict.ref_init_model()[39m (pid=24019, ip=240.19.50.206, actor_id=9ad9665f4e4caa99560f840001000000, repr=<verl.single_controller.ray.base.WorkerDict object at 0x7b7c2d85d6d0>)
+[36m(main_task pid=22859)[0m   File "/root/miniconda3/envs/searchr1/lib/python3.9/site-packages/transformers/models/auto/configuration_auto.py", line 740, in __getitem__
+[36m(main_task pid=22859)[0m     raise KeyError(key)
+[36m(main_task pid=22859)[0m KeyError: 'qwen3_5_moe'
+[36m(main_task pid=22859)[0m 
+[36m(main_task pid=22859)[0m During handling of the above exception, another exception occurred:
+[36m(main_task pid=22859)[0m 
+[36m(main_task pid=22859)[0m [36mray::WorkerDict.ref_init_model()[39m (pid=24019, ip=240.19.50.206, actor_id=9ad9665f4e4caa99560f840001000000, repr=<verl.single_controller.ray.base.WorkerDict object at 0x7b7c2d85d6d0>)
+[36m(main_task pid=22859)[0m   File "/root/Search-R1/verl/single_controller/ray/base.py", line 399, in func
+[36m(main_task pid=22859)[0m     return getattr(self.worker_dict[key], name)(*args, **kwargs)
+[36m(main_task pid=22859)[0m   File "/root/Search-R1/verl/single_controller/base/decorator.py", line 404, in inner
+[36m(main_task pid=22859)[0m     return func(*args, **kwargs)
+[36m(main_task pid=22859)[0m   File "/root/Search-R1/verl/workers/fsdp_workers.py", line 337, in init_model
+[36m(main_task pid=22859)[0m     self.ref_module_fsdp = self._build_model_optimizer(model_path=ref_model_path,
+[36m(main_task pid=22859)[0m   File "/root/Search-R1/verl/workers/fsdp_workers.py", line 139, in _build_model_optimizer
+[36m(main_task pid=22859)[0m     actor_model_config = AutoConfig.from_pretrained(local_path, trust_remote_code=trust_remote_code)
+[36m(main_task pid=22859)[0m   File "/root/miniconda3/envs/searchr1/lib/python3.9/site-packages/transformers/models/auto/configuration_auto.py", line 1040, in from_pretrained
+[36m(main_task pid=22859)[0m     raise ValueError(
+[36m(main_task pid=22859)[0m ValueError: The checkpoint you are trying to load has model type `qwen3_5_moe` but Transformers does not recognize this architecture. This could be because of an issue with the checkpoint, or because your version of Transformers is out of date.
+[36m(main_task pid=22859)[0m Unhandled error (suppress with 'RAY_IGNORE_UNHANDLED_ERRORS=1'): [36mray::WorkerDict.ref_init_model()[39m (pid=24343, ip=240.19.50.206, actor_id=f58f926cc0bccb982329e46601000000, repr=<verl.single_controller.ray.base.WorkerDict object at 0x786df84686d0>)
+[36m(main_task pid=22859)[0m   File "/root/miniconda3/envs/searchr1/lib/python3.9/site-packages/transformers/models/auto/configuration_auto.py", line 740, in __getitem__
+[36m(main_task pid=22859)[0m     raise KeyError(key)
+[36m(main_task pid=22859)[0m KeyError: 'qwen3_5_moe'
+[36m(main_task pid=22859)[0m 
+[36m(main_task pid=22859)[0m During handling of the above exception, another exception occurred:
+[36m(main_task pid=22859)[0m 
+[36m(main_task pid=22859)[0m [36mray::WorkerDict.ref_init_model()[39m (pid=24343, ip=240.19.50.206, actor_id=f58f926cc0bccb982329e46601000000, repr=<verl.single_controller.ray.base.WorkerDict object at 0x786df84686d0>)
+[36m(main_task pid=22859)[0m   File "/root/Search-R1/verl/single_controller/ray/base.py", line 399, in func
+[36m(main_task pid=22859)[0m     return getattr(self.worker_dict[key], name)(*args, **kwargs)
+[36m(main_task pid=22859)[0m   File "/root/Search-R1/verl/single_controller/base/decorator.py", line 404, in inner
+[36m(main_task pid=22859)[0m     return func(*args, **kwargs)
+[36m(main_task pid=22859)[0m   File "/root/Search-R1/verl/workers/fsdp_workers.py", line 337, in init_model
+[36m(main_task pid=22859)[0m     self.ref_module_fsdp = self._build_model_optimizer(model_path=ref_model_path,
+[36m(main_task pid=22859)[0m   File "/root/Search-R1/verl/workers/fsdp_workers.py", line 139, in _build_model_optimizer
+[36m(main_task pid=22859)[0m     actor_model_config = AutoConfig.from_pretrained(local_path, trust_remote_code=trust_remote_code)
+[36m(main_task pid=22859)[0m   File "/root/miniconda3/envs/searchr1/lib/python3.9/site-packages/transformers/models/auto/configuration_auto.py", line 1040, in from_pretrained
+[36m(main_task pid=22859)[0m     raise ValueError(
+[36m(main_task pid=22859)[0m ValueError: The checkpoint you are trying to load has model type `qwen3_5_moe` but Transformers does not recognize this architecture. This could be because of an issue with the checkpoint, or because your version of Transformers is out of date.
+Traceback (most recent call last):
+  File "/root/Search-R1/verl/trainer/main_ppo.py", line 128, in main
+    ray.get(main_task.remote(config))
+  File "/root/miniconda3/envs/searchr1/lib/python3.9/site-packages/ray/_private/auto_init_hook.py", line 22, in auto_init_wrapper
+    return fn(*args, **kwargs)
+  File "/root/miniconda3/envs/searchr1/lib/python3.9/site-packages/ray/_private/client_mode_hook.py", line 104, in wrapper
+    return func(*args, **kwargs)
+  File "/root/miniconda3/envs/searchr1/lib/python3.9/site-packages/ray/_private/worker.py", line 2961, in get
+    values, debugger_breakpoint = worker.get_objects(
+  File "/root/miniconda3/envs/searchr1/lib/python3.9/site-packages/ray/_private/worker.py", line 1026, in get_objects
+    raise value.as_instanceof_cause()
+ray.exceptions.RayTaskError(ValueError): [36mray::main_task()[39m (pid=22859, ip=240.19.50.206)
+  File "/root/Search-R1/verl/trainer/main_ppo.py", line 218, in main_task
+    trainer.init_workers()
+  File "/root/Search-R1/verl/trainer/ppo/ray_trainer.py", line 1170, in init_workers
+    self.ref_policy_wg.init_model()
+  File "/root/Search-R1/verl/single_controller/ray/base.py", line 42, in func
+    output = ray.get(output)
+ray.exceptions.RayTaskError(ValueError): [36mray::WorkerDict.ref_init_model()[39m (pid=24345, ip=240.19.50.206, actor_id=04ebf0a4caebc803dea0630c01000000, repr=<verl.single_controller.ray.base.WorkerDict object at 0x790c4b0d9e50>)
+  File "/root/miniconda3/envs/searchr1/lib/python3.9/site-packages/transformers/models/auto/configuration_auto.py", line 740, in __getitem__
+    raise KeyError(key)
+KeyError: 'qwen3_5_moe'
+
+During handling of the above exception, another exception occurred:
+
+[36mray::WorkerDict.ref_init_model()[39m (pid=24345, ip=240.19.50.206, actor_id=04ebf0a4caebc803dea0630c01000000, repr=<verl.single_controller.ray.base.WorkerDict object at 0x790c4b0d9e50>)
+  File "/root/Search-R1/verl/single_controller/ray/base.py", line 399, in func
+    return getattr(self.worker_dict[key], name)(*args, **kwargs)
+  File "/root/Search-R1/verl/single_controller/base/decorator.py", line 404, in inner
+    return func(*args, **kwargs)
+  File "/root/Search-R1/verl/workers/fsdp_workers.py", line 337, in init_model
+    self.ref_module_fsdp = self._build_model_optimizer(model_path=ref_model_path,
+  File "/root/Search-R1/verl/workers/fsdp_workers.py", line 139, in _build_model_optimizer
+    actor_model_config = AutoConfig.from_pretrained(local_path, trust_remote_code=trust_remote_code)
+  File "/root/miniconda3/envs/searchr1/lib/python3.9/site-packages/transformers/models/auto/configuration_auto.py", line 1040, in from_pretrained
+    raise ValueError(
+ValueError: The checkpoint you are trying to load has model type `qwen3_5_moe` but Transformers does not recognize this architecture. This could be because of an issue with the checkpoint, or because your version of Transformers is out of date.
+
+Set the environment variable HYDRA_FULL_ERROR=1 for a complete stack trace.
+[36m(pid=24344)[0m /root/miniconda3/envs/searchr1/lib/python3.9/site-packages/vllm/connections.py:8: RuntimeWarning: Failed to read commit hash:[32m [repeated 5x across cluster] (Ray deduplicates logs by default. Set RAY_DEDUP_LOGS=0 to disable log deduplication, or see https://docs.ray.io/en/master/ray-observability/user-guides/configure-logging.html#log-deduplication for more options.)[0m
+[36m(pid=24344)[0m No module named 'vllm._version'[32m [repeated 5x across cluster][0m
+[36m(pid=24344)[0m   from vllm.version import __version__ as VLLM_VERSION[32m [repeated 5x across cluster][0m
+[36m(WorkerDict pid=24343)[0m [W1115 10:36:10.214608662 CUDAAllocatorConfig.h:28] Warning: expandable_segments not supported on this platform (function operator())[32m [repeated 7x across cluster][0m
+ERROR conda.cli.main_run:execute(149): `conda run python3 -m verl.trainer.main_ppo --config-name sdpo algorithm.adv_estimator=grpo data.train_files=./data/nq_hotpotqa_train/train.parquet data.val_files=./data/nq_hotpotqa_train/test.parquet data.train_data_num=null data.val_data_num=null data.return_raw_chat=true data.train_batch_size=512 data.val_batch_size=256 data.max_prompt_length=4096 data.max_response_length=500 data.max_start_length=2048 data.max_obs_length=500 data.shuffle_train_dataloader=True actor_rollout_ref.model.path=/root/Search-R1/models/Qwen3.6-35B-A3B actor_rollout_ref.model.enable_gradient_checkpointing=true actor_rollout_ref.model.use_remove_padding=True actor_rollout_ref.actor.optim.lr=1e-6 actor_rollout_ref.actor.optim.lr_warmup_steps_ratio=0.285 actor_rollout_ref.actor.use_kl_loss=false actor_rollout_ref.actor.ppo_mini_batch_size=256 actor_rollout_ref.actor.ppo_micro_batch_size=32 actor_rollout_ref.actor.fsdp_config.param_offload=true actor_rollout_ref.actor.fsdp_config.grad_offload=true actor_rollout_ref.actor.fsdp_config.optimizer_offload=true actor_rollout_ref.rollout.log_prob_micro_batch_size=64 actor_rollout_ref.rollout.tensor_model_parallel_size=2 actor_rollout_ref.rollout.name=vllm actor_rollout_ref.rollout.gpu_memory_utilization=0.5 actor_rollout_ref.rollout.n=1 actor_rollout_ref.rollout.n_agent=5 algorithm.no_think_rl=false actor_rollout_ref.rollout.temperature=1 actor_rollout_ref.actor.state_masking=true reward_model.enable=false trainer.logger=['console','wandb'] +trainer.val_only=false trainer.val_before_train=true trainer.default_hdfs_dir=null trainer.n_gpus_per_node=8 trainer.nnodes=1 trainer.save_freq=100 trainer.test_freq=100 trainer.save_train_replay=true trainer.train_replay_path=res/train_replays/nq_sdpo-qwen3.6-35b-a3b-em-replay trainer.project_name=Search-R1 trainer.experiment_name=nq_sdpo-qwen3.6-35b-a3b-em-replay trainer.total_epochs=15 trainer.total_training_steps=1005 trainer.default_local_dir=verl_checkpoints/nq_sdpo-qwen3.6-35b-a3b-em-replay do_search=true max_turns=4 retriever.url=http://127.0.0.1:8000/retrieve retriever.topk=3` failed. (See above for error)

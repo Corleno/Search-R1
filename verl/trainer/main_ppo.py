@@ -111,18 +111,23 @@ def main(config):
         _ray_env = {
             'TOKENIZERS_PARALLELISM': 'true',
             'NCCL_DEBUG': os.environ.get('NCCL_DEBUG', 'WARN'),
+            # Always force these so Ray workers cannot inherit host TCPXO tuner/net shims.
+            'NCCL_TUNER_PLUGIN': os.environ.get('NCCL_TUNER_PLUGIN', 'none'),
+            'NCCL_NET_PLUGIN': os.environ.get('NCCL_NET_PLUGIN', 'none'),
+            'NCCL_SHIMNET_SHIM_LAYERS': os.environ.get('NCCL_SHIMNET_SHIM_LAYERS', 'UNUSED'),
+            'NCCL_IB_DISABLE': os.environ.get('NCCL_IB_DISABLE', '1'),
+            'NCCL_SOCKET_IFNAME': os.environ.get('NCCL_SOCKET_IFNAME', 'lo'),
+            'NCCL_PROTO': os.environ.get('NCCL_PROTO', 'Simple'),
+            'NCCL_ALGO': os.environ.get('NCCL_ALGO', 'Ring'),
         }
-        for _k in (
-            'LD_LIBRARY_PATH',
-            'NCCL_NET_PLUGIN',
-            'NCCL_SHIMNET_SHIM_LAYERS',
-            'NCCL_IB_DISABLE',
-            'NCCL_SOCKET_IFNAME',
-            'NCCL_PROTO',
-            'NCCL_ALGO',
-        ):
+        for _k in ('LD_LIBRARY_PATH',):
             if _k in os.environ:
                 _ray_env[_k] = os.environ[_k]
+        # Explicitly clear tuner config path in workers if parent unset it.
+        if 'NCCL_TUNER_CONFIG_PATH' not in os.environ:
+            _ray_env['NCCL_TUNER_CONFIG_PATH'] = ''
+        else:
+            _ray_env['NCCL_TUNER_CONFIG_PATH'] = os.environ['NCCL_TUNER_CONFIG_PATH']
         ray.init(runtime_env={'env_vars': _ray_env})
 
     ray.get(main_task.remote(config))
