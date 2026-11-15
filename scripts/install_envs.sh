@@ -46,8 +46,8 @@ usage() {
 Usage: bash scripts/install_envs.sh [OPTIONS]
 
 Create conda environments from README.md (run from repo root):
-  - searchr1   Python 3.9 — torch 2.4 (cu121), vllm 0.6.3, verl, flash-attn wheel, wandb
-  - retriever  Python 3.10 — pytorch+cuda 12.1, transformers<4.48, pyserini, faiss-gpu, fastapi
+  - searchr1   Python 3.9 — torch 2.4 (cu121), vllm 0.6.3, verl, flash-attn wheel, wandb, huggingface_hub
+  - retriever  Python 3.10 — pytorch+cuda 12.1, transformers<4.48, pyserini, faiss-gpu, fastapi, huggingface_hub
 
   Installs searchr1 first, then retriever (sequential; retriever uses large conda packages).
 
@@ -195,6 +195,9 @@ install_searchr1() {
   echo "Installing wandb ..."
   conda run -n searchr1 pip install wandb
 
+  echo "Installing huggingface_hub ..."
+  conda run -n searchr1 pip install huggingface_hub
+
   echo "searchr1 environment ready."
 }
 
@@ -214,6 +217,9 @@ install_retriever() {
 
   echo "Installing uvicorn, fastapi ..."
   conda run -n retriever pip install uvicorn fastapi
+
+  echo "Installing huggingface_hub ..."
+  conda run -n retriever pip install huggingface_hub
 
   echo "retriever environment ready."
 }
