@@ -129,3 +129,6 @@ res/
 
 # eval results
 eval_replays/
+
+# models
+models/

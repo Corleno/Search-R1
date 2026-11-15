@@ -35,13 +35,31 @@ def load_docs(corpus, doc_idxs):
     results = [corpus[int(idx)] for idx in doc_idxs]
     return results
 
+def torch_cuda_usable() -> bool:
+    """Return True only if a tiny CUDA op succeeds (filters unsupported arches like B200/sm_100 on older torch)."""
+    if not torch.cuda.is_available():
+        return False
+    try:
+        x = torch.zeros(1, device="cuda")
+        _ = x + 1
+        torch.cuda.synchronize()
+        return True
+    except Exception as e:
+        warnings.warn(f"CUDA not usable for PyTorch encoder ({e}); falling back to CPU.")
+        return False
+
+
 def load_model(model_path: str, use_fp16: bool = False):
     model_config = AutoConfig.from_pretrained(model_path, trust_remote_code=True)
     model = AutoModel.from_pretrained(model_path, trust_remote_code=True)
     model.eval()
-    model.cuda()
-    if use_fp16: 
-        model = model.half()
+    if torch_cuda_usable():
+        model.cuda()
+        if use_fp16:
+            model = model.half()
+    else:
+        # CPU path: keep fp32 (half on CPU is slow / poorly supported).
+        print("Encoder running on CPU (PyTorch CUDA kernels unavailable for this GPU).", flush=True)
     tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=True, trust_remote_code=True)
     return model, tokenizer
 
@@ -94,7 +112,8 @@ class Encoder:
                                 truncation=True,
                                 return_tensors="pt"
                                 )
-        inputs = {k: v.cuda() for k, v in inputs.items()}
+        device = next(self.model.parameters()).device
+        inputs = {k: v.to(device) for k, v in inputs.items()}
 
         if "T5" in type(self.model).__name__:
             # T5-based retrieval model
@@ -118,7 +137,8 @@ class Encoder:
         query_emb = query_emb.astype(np.float32, order="C")
         
         del inputs, output
-        torch.cuda.empty_cache()
+        if device.type == "cuda":
+            torch.cuda.empty_cache()
 
         return query_emb
 
@@ -212,11 +232,15 @@ class DenseRetriever(BaseRetriever):
         print("FAISS index loaded.", flush=True)
         if config.faiss_gpu:
             print("Moving index to GPU(s) ...", flush=True)
-            co = faiss.GpuMultipleClonerOptions()
-            co.useFloat16 = True
-            co.shard = True
-            self.index = faiss.index_cpu_to_all_gpus(self.index, co=co)
-            print("Index on GPU.", flush=True)
+            try:
+                co = faiss.GpuMultipleClonerOptions()
+                co.useFloat16 = True
+                co.shard = True
+                self.index = faiss.index_cpu_to_all_gpus(self.index, co=co)
+                print("Index on GPU.", flush=True)
+            except Exception as e:
+                warnings.warn(f"FAISS GPU init failed ({e}); keeping index on CPU.")
+                print("Index remaining on CPU.", flush=True)
 
         print(f"Loading corpus from {self.corpus_path} ...", flush=True)
         self.corpus = load_corpus(self.corpus_path)
