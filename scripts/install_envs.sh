@@ -14,6 +14,7 @@
 # Options:
 #   --searchr1-only   Install only the searchr1 environment (Python 3.9, RL training)
 #   --retriever-only  Install only the retriever environment (Python 3.10, retrieval server)
+#   --b200            Install searchr1 for NVIDIA B200 (sm_100); see upgrade_searchr1_b200.sh
 #   --install-conda   Run scripts/install_conda.sh if conda is not on PATH
 #   -h, --help        Print help and exit
 #
@@ -21,6 +22,8 @@
 #   CONDA_INSTALL_DIR   Miniconda install path (default: ~/miniconda3)
 #   SKIP_FLASH_ATTN=1   Skip flash-attn in searchr1 (optional)
 #   FLASH_ATTN_WHEEL    Override prebuilt flash-attn wheel URL (README default for torch 2.4 + cu121 + py3.9)
+#   SEARCHR1_B200=1     Install Blackwell/B200 stack via scripts/upgrade_searchr1_b200.sh
+#                       (Python 3.10, torch 2.7.1+cu128, rebuild vllm 0.6.3 for sm_100)
 #
 # After install:
 #   conda activate searchr1
@@ -40,6 +43,7 @@ FLASH_ATTN_WHEEL_DEFAULT="https://github.com/Dao-AILab/flash-attention/releases/
 INSTALL_SEARCHR1=1
 INSTALL_RETRIEVER=1
 INSTALL_CONDA=0
+INSTALL_B200=0
 
 usage() {
   cat <<EOF
@@ -47,6 +51,7 @@ Usage: bash scripts/install_envs.sh [OPTIONS]
 
 Create conda environments from README.md (run from repo root):
   - searchr1   Python 3.9 — torch 2.4 (cu121), vllm 0.6.3, verl, flash-attn wheel, wandb, huggingface_hub
+               With --b200 / SEARCHR1_B200=1: Python 3.10 — torch 2.7.1+cu128, rebuilt vllm 0.6.3 (sm_100)
   - retriever  Python 3.10 — pytorch+cuda 12.1, transformers<4.48, pyserini, faiss-gpu, fastapi, huggingface_hub
 
   Installs searchr1 first, then retriever (sequential; retriever uses large conda packages).
@@ -54,6 +59,7 @@ Create conda environments from README.md (run from repo root):
 Options:
   --searchr1-only   Install only the searchr1 environment
   --retriever-only  Install only the retriever environment
+  --b200            Blackwell/B200 searchr1 stack (delegates to upgrade_searchr1_b200.sh)
   --install-conda   Run scripts/install_conda.sh if conda is missing
   -h, --help        Show this help
 
@@ -62,12 +68,14 @@ Examples:
   bash scripts/install_envs.sh --install-conda
   bash scripts/install_envs.sh --searchr1-only
   bash scripts/install_envs.sh --retriever-only
+  bash scripts/install_envs.sh --searchr1-only --b200
   SKIP_FLASH_ATTN=1 bash scripts/install_envs.sh --searchr1-only
 
 Environment variables:
   CONDA_INSTALL_DIR   Miniconda path (default: ~/miniconda3; see install_conda.sh)
   SKIP_FLASH_ATTN=1   Skip flash-attn in searchr1 (optional)
   FLASH_ATTN_WHEEL    Prebuilt flash-attn wheel URL (see README Installation)
+  SEARCHR1_B200=1     Same as --b200
 
 After install:
   conda activate searchr1
@@ -87,6 +95,10 @@ while [[ $# -gt 0 ]]; do
       INSTALL_RETRIEVER=1
       shift
       ;;
+    --b200)
+      INSTALL_B200=1
+      shift
+      ;;
     --install-conda)
       INSTALL_CONDA=1
       shift
@@ -102,6 +114,10 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+
+if [[ "${SEARCHR1_B200:-0}" == 1 ]]; then
+  INSTALL_B200=1
+fi
 
 # Conda 24+ requires accepting Anaconda default-channel ToS before create/install.
 accept_conda_tos() {
@@ -164,6 +180,12 @@ ensure_pip_py39() {
 
 install_searchr1() {
   echo "=== Installing searchr1 environment ==="
+  if [[ "${INSTALL_B200}" == 1 ]]; then
+    echo "B200/Blackwell path: delegating to scripts/upgrade_searchr1_b200.sh"
+    bash "${SCRIPT_DIR}/upgrade_searchr1_b200.sh"
+    return 0
+  fi
+
   create_env_if_missing searchr1 3.9
   ensure_pip_py39
 
