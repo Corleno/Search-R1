@@ -4,17 +4,17 @@ This repo integrates [SDPO](https://arxiv.org/abs/2601.20802) (Self-Distilled Po
 
 SDPO trains the policy by distilling to a **self-teacher**: the same model conditioned on successful peer rollouts (and optional feedback), without an external teacher LM like OPD.
 
-## SDPO vs OPD vs GRPO vs SDPO+GRPO
+## SDPO vs OPD vs GRPO vs SDPO+GRPO vs SFT-correct
 
 
-| Aspect         | GRPO                       | OPD                              | SDPO                                | SDPO+GRPO                                 |
-| -------------- | -------------------------- | -------------------------------- | ----------------------------------- | ----------------------------------------- |
-| Teacher        | —                          | External causal LM               | Self (reprompted context ± EMA ref) | Self (same as SDPO)                       |
-| Loss           | PPO clip + group advantage | PPO clip + dense teacher rewards | KL / reverse-KL distillation        | `sdpo_coef * L_sdpo + grpo_coef * L_grpo` |
-| Critic         | No                         | No                               | No                                  | No                                        |
-| Search         | Yes                        | Yes                              | Yes                                 | Yes                                       |
-| `reward_model` | Rule EM                    | `use_opd_teacher=true`           | Not required                        | Not required                              |
-| Actor batch    | Full batch                 | Full batch                       | Reprompt-filtered                   | Full batch (SDPO masked)                  |
+| Aspect         | GRPO                       | OPD                              | SDPO                                | SDPO+GRPO                                 | SFT-correct                                      |
+| -------------- | -------------------------- | -------------------------------- | ----------------------------------- | ----------------------------------------- | ------------------------------------------------ |
+| Teacher        | —                          | External causal LM               | Self (reprompted context ± EMA ref) | Self (same as SDPO)                       | —                                                |
+| Loss           | PPO clip + group advantage | PPO clip + dense teacher rewards | KL / reverse-KL distillation        | `sdpo_coef * L_sdpo + grpo_coef * L_grpo` | NLL on EM-correct rollouts (+ FIFO replay buffer) |
+| Critic         | No                         | No                               | No                                  | No                                        | No                                               |
+| Search         | Yes                        | Yes                              | Yes                                 | Yes                                       | Yes                                              |
+| `reward_model` | Rule EM                    | `use_opd_teacher=true`           | Not required                        | Not required                              | Not required                                     |
+| Actor batch    | Full batch                 | Full batch                       | Reprompt-filtered                   | Full batch (SDPO masked)                  | Correct-filtered + replay mix                    |
 
 
 
@@ -69,7 +69,10 @@ Or use the test launch script: `scripts/experiments/rui_meng/train_sdpo_grpo_v02
 
 | Key                                                                       | Description                                                                 |
 | ------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| `actor_rollout_ref.actor.policy_loss.loss_mode`                           | `sdpo`, `sdpo_grpo`, or `vanilla` (GRPO)                                    |
+| `actor_rollout_ref.actor.policy_loss.loss_mode`                           | `sdpo`, `sdpo_grpo`, `sft` (correct-traj NLL), or `vanilla` (GRPO)           |
+| `actor_rollout_ref.actor.sft.success_reward_threshold`                    | EM success cutoff for SFT-correct (default `0.5`)                           |
+| `actor_rollout_ref.actor.sft.replay_buffer_capacity`                      | In-memory FIFO capacity for past correct trajectories (default `4096`)      |
+| `actor_rollout_ref.actor.sft.replay_samples_per_step`                     | Max replay samples mixed into each SFT update (default `256`)               |
 | `actor_rollout_ref.actor.policy_loss.sdpo_coef`                           | Weight for SDPO term in hybrid mode (default `1.0`)                         |
 | `actor_rollout_ref.actor.policy_loss.grpo_coef`                           | Weight for GRPO term in hybrid mode (default `1.0`)                         |
 | `actor_rollout_ref.actor.self_distillation.*`                             | Reprompt templates, `success_reward_threshold`, `is_clip`, etc.             |
@@ -98,8 +101,13 @@ SDPO and OPD are **mutually exclusive** training modes:
 - OPD: `algorithm.adv_estimator=token_reward_direct*` + `reward_model.use_opd_teacher=true`
 - SDPO: `policy_loss.loss_mode=sdpo` + `reward_model.enable=false`
 - SDPO+GRPO: `policy_loss.loss_mode=sdpo_grpo` + `reward_model.enable=false`
+- SFT-correct: `policy_loss.loss_mode=sft` (`--config-name sft_correct`) + `reward_model.enable=false`
 
 You can compare checkpoints using the same search eval scripts (e.g. `eval_grpo_v02.sh`).
+
+### SFT on correct trajectories
+
+Online rejection-SFT: keep EM-correct search rollouts, mix past corrects from an in-memory FIFO replay buffer, and train with masked NLL (no SDPO reprompt / teacher). Launcher: `scripts/experiments/rui_meng/train_sft_correct_v02_replay.sh`. Plan: `plan/experiments/sft_correct_qwen25_3b_replay.md`.
 
 ## Files
 
@@ -108,11 +116,14 @@ You can compare checkpoints using the same search eval scripts (e.g. `eval_grpo_
 | ---------------------------------------------------------- | ----------------------------------------- |
 | `train_sdpo.sh`                                            | Launch script                             |
 | `scripts/experiments/rui_meng/train_sdpo_grpo_v02_test.sh` | SDPO+GRPO test launch script              |
+| `scripts/experiments/rui_meng/train_sft_correct_v02_replay.sh` | SFT-correct + replay buffer launch script |
+| `verl/trainer/config/sft_correct.yaml`                     | Hydra preset for SFT-correct              |
 | `verl/trainer/config/sdpo.yaml`                            | SDPO Hydra preset                         |
 | `verl/trainer/config/sdpo_grpo.yaml`                       | SDPO+GRPO Hydra preset                    |
 | `verl/trainer/ppo/core_algos.py`                           | `compute_self_distillation_loss`          |
 | `verl/trainer/ppo/ray_trainer.py`                          | Reprompt batch + teacher log-probs        |
-| `verl/workers/actor/dp_actor.py`                           | SDPO / SDPO+GRPO actor update             |
+| `verl/workers/actor/dp_actor.py`                           | SDPO / SDPO+GRPO / SFT actor update       |
+| `verl/trainer/ppo/correct_trajectory_replay_buffer.py`     | FIFO correct-trajectory replay buffer     |
 | `README_OPD.md`                                            | On-policy distillation (external teacher) |
 
 

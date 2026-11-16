@@ -523,7 +523,14 @@ class DataParallelPPOActor(BasePPOActor):
                 f"SDPO missing keys: {self_distillation_required_keys - set(data.batch.keys())}"
             )
 
-        select_keys = ['responses', 'input_ids', 'attention_mask', 'position_ids', 'old_log_probs', 'advantages']
+        select_keys = ['responses', 'input_ids', 'attention_mask', 'position_ids']
+        if loss_mode != 'sft':
+            select_keys.extend(['old_log_probs', 'advantages'])
+        else:
+            if 'old_log_probs' in data.batch.keys():
+                select_keys.append('old_log_probs')
+            if 'advantages' in data.batch.keys():
+                select_keys.append('advantages')
         if 'response_mask' in data.batch.keys():
             select_keys.append('response_mask')
         if self.config.state_masking:
@@ -576,8 +583,8 @@ class DataParallelPPOActor(BasePPOActor):
                     response_mask = attention_mask[:, -response_length:]
                 if self.config.state_masking:
                     response_mask = data['loss_mask']
-                old_log_prob = data['old_log_probs']
-                advantages = data['advantages']
+                old_log_prob = data['old_log_probs'] if 'old_log_probs' in data else None
+                advantages = data['advantages'] if 'advantages' in data else None
 
                 clip_ratio = self.config.clip_ratio
                 entropy_coeff = self.config.entropy_coeff
@@ -590,10 +597,16 @@ class DataParallelPPOActor(BasePPOActor):
                     bool(getattr(self.config, 'calculate_entropy', False))
                     or entropy_coeff != 0
                     or self_distillation_enabled
+                    or loss_mode == 'sft'
                 )
                 self_distillation_mask = data.get('self_distillation_mask') if self_distillation_enabled else None
 
-                if advantages.dim() == 3 and not self_distillation_enabled:
+                if (
+                    advantages is not None
+                    and advantages.dim() == 3
+                    and not self_distillation_enabled
+                    and loss_mode != 'sft'
+                ):
                     top_k = advantages.shape[-1]
                     student_top_k_ids = None
                     if 'union_top_k_ids' in data:
@@ -709,6 +722,19 @@ class DataParallelPPOActor(BasePPOActor):
                         entropy_loss = torch.tensor(0.0, device=log_prob.device)
                     log_metrics['actor/entropy_loss'] = entropy_loss.detach().item()
                     policy_loss = pg_loss - entropy_loss * entropy_coeff
+                elif loss_mode == 'sft':
+                    # Supervised NLL on correct trajectories: -log π(a|s) over masked tokens.
+                    sft_loss = -verl_F.masked_mean(log_prob, response_mask)
+                    if entropy is not None:
+                        entropy_loss = verl_F.masked_mean(entropy, response_mask)
+                    else:
+                        entropy_loss = torch.tensor(0.0, device=log_prob.device)
+                    policy_loss = sft_loss - entropy_loss * entropy_coeff
+                    log_metrics = {
+                        'actor/sft_loss': sft_loss.detach().item(),
+                        'actor/pg_loss': sft_loss.detach().item(),
+                        'actor/entropy_loss': entropy_loss.detach().item(),
+                    }
                 else:
                     pg_loss, pg_clipfrac, ppo_kl = core_algos.compute_policy_loss(
                         old_log_prob=old_log_prob,
@@ -732,12 +758,16 @@ class DataParallelPPOActor(BasePPOActor):
                     }
                 if self.config.use_kl_loss:
                     ref_log_prob = data['ref_log_prob']
-                    if advantages.dim() == 3:
+                    if advantages is not None and advantages.dim() == 3:
                         ref_log_prob = ref_log_prob.unsqueeze(-1).expand_as(log_prob_for_loss)
                     kld = core_algos.kl_penalty(logprob=log_prob_for_loss,
                                                 ref_logprob=ref_log_prob,
                                                 kl_penalty=self.config.kl_loss_type)
-                    kl_mask = response_mask.unsqueeze(-1) if advantages.dim() == 3 else response_mask
+                    kl_mask = (
+                        response_mask.unsqueeze(-1)
+                        if advantages is not None and advantages.dim() == 3
+                        else response_mask
+                    )
                     kl_loss = masked_mean(kld, kl_mask)
 
                     policy_loss = policy_loss + kl_loss * self.config.kl_loss_coef

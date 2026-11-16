@@ -139,6 +139,14 @@ def _is_sdpo_only_mode(config) -> bool:
     return _get_loss_mode(config) == 'sdpo'
 
 
+def _is_sft_mode(config) -> bool:
+    return _get_loss_mode(config) == 'sft'
+
+
+def _get_sft_cfg(config):
+    return OmegaConf.select(config, 'actor_rollout_ref.actor.sft', default={}) or {}
+
+
 def _distill_inactive_samples_with_external_ref(config) -> bool:
     if not _is_sdpo_only_mode(config):
         return False
@@ -427,7 +435,13 @@ class RayPPOTrainer(object):
 
         self._create_dataloader()
         self._init_logger()
-    
+        self.sft_replay_buffer = None
+        if _is_sft_mode(config):
+            from verl.trainer.ppo.correct_trajectory_replay_buffer import CorrectTrajectoryReplayBuffer
+            sft_cfg = _get_sft_cfg(config)
+            capacity = int(sft_cfg.get('replay_buffer_capacity', 4096))
+            self.sft_replay_buffer = CorrectTrajectoryReplayBuffer(capacity=capacity)
+
     def _init_logger(self):
         from verl.utils.tracking import Tracking
         self.logger = Tracking(project_name=self.config.trainer.project_name,
@@ -1250,6 +1264,104 @@ class RayPPOTrainer(object):
         metrics['self_distillation/effective_batch_size_after_filter'] = len(batch)
         return batch, True
 
+    def _correct_trajectory_mask(self, batch: DataProto) -> torch.Tensor:
+        sft_cfg = _get_sft_cfg(self.config)
+        threshold = float(sft_cfg.get('success_reward_threshold', 0.5))
+        if 'token_level_scores' in batch.batch.keys():
+            seq_scores = batch.batch['token_level_scores'].sum(dim=-1)
+        elif 'token_level_rewards' in batch.batch.keys():
+            seq_scores = batch.batch['token_level_rewards'].sum(dim=-1)
+        else:
+            raise KeyError('SFT correct-trajectory filter requires token_level_scores or token_level_rewards')
+        return seq_scores >= threshold
+
+    def _pad_sft_batches_for_concat(self, batches: list) -> list:
+        """Pad seq/response dims so DataProto.concat succeeds across steps."""
+        from verl.trainer.ppo.correct_trajectory_replay_buffer import pad_dataproto_seq_dims
+
+        if not batches:
+            return batches
+        max_seq = max(b.batch['input_ids'].shape[-1] for b in batches)
+        max_resp = max(b.batch['responses'].shape[-1] for b in batches)
+        return [pad_dataproto_seq_dims(b, max_seq, max_resp) for b in batches]
+
+    def _sft_actor_batch_keys(self, batch: DataProto) -> list:
+        keys = ['responses', 'input_ids', 'attention_mask', 'position_ids']
+        for optional in ('response_mask', 'loss_mask'):
+            if optional in batch.batch.keys():
+                keys.append(optional)
+        return keys
+
+    def _filter_and_rebalance_sft_actor_batch(self, batch: DataProto, metrics: dict):
+        """Keep EM-correct trajectories, mix FIFO replay samples, rebalance for DP."""
+        if not _is_sft_mode(self.config):
+            return batch, True
+
+        sft_cfg = _get_sft_cfg(self.config)
+        replay_samples_per_step = int(sft_cfg.get('replay_samples_per_step', 256))
+        correct_mask = self._correct_trajectory_mask(batch)
+        num_current = int(correct_mask.sum().item())
+        metrics['sft/num_current_correct'] = num_current
+        metrics['sft/original_batch_size_before_actor_filter'] = len(batch)
+
+        sft_keys = self._sft_actor_batch_keys(batch)
+        current_correct = None
+        if num_current > 0:
+            current_correct = batch.select_by_mask(correct_mask).select(batch_keys=sft_keys)
+
+        # Sample from buffer before pushing current corrects (avoid trivial self-dup).
+        sampled = None
+        num_replay = 0
+        if self.sft_replay_buffer is not None and replay_samples_per_step > 0:
+            sampled = self.sft_replay_buffer.sample(replay_samples_per_step)
+            if sampled is not None:
+                num_replay = len(sampled)
+        metrics['sft/num_replay_sampled'] = num_replay
+        metrics['sft/replay_buffer_size'] = (
+            len(self.sft_replay_buffer) if self.sft_replay_buffer is not None else 0
+        )
+
+        if current_correct is not None and self.sft_replay_buffer is not None:
+            self.sft_replay_buffer.push(current_correct)
+            metrics['sft/replay_buffer_size'] = len(self.sft_replay_buffer)
+
+        parts = []
+        if current_correct is not None and len(current_correct) > 0:
+            parts.append(current_correct)
+        if sampled is not None and len(sampled) > 0:
+            parts.append(sampled)
+
+        if not parts:
+            metrics['sft/empty_target_batch'] = 1.0
+            return None, False
+
+        if len(parts) == 2:
+            common = [k for k in parts[0].batch.keys() if k in parts[1].batch.keys()]
+            parts = [p.select(batch_keys=common) for p in parts]
+
+        parts = self._pad_sft_batches_for_concat(parts)
+        mixed = parts[0] if len(parts) == 1 else DataProto.concat(parts)
+        # Preserve temperature / other train meta from the live batch.
+        if batch.meta_info:
+            mixed.meta_info = {**dict(batch.meta_info), **dict(mixed.meta_info or {})}
+
+        world_size = self.actor_rollout_wg.world_size
+        num_active = len(mixed)
+        if num_active < world_size:
+            metrics['sft/skipped_update_insufficient_samples'] = 1.0
+            metrics['sft/empty_target_batch'] = 1.0
+            return None, False
+
+        n = (num_active // world_size) * world_size
+        if n < num_active:
+            mixed.reorder(torch.arange(n))
+            metrics['sft/trimmed_for_dp'] = num_active - n
+
+        mixed.meta_info['global_token_num'] = torch.sum(mixed.batch['attention_mask'], dim=-1).tolist()
+        self._balance_batch(mixed, metrics, logging_prefix='sft_correct_seqlen')
+        metrics['sft/effective_batch_size_after_filter'] = len(mixed)
+        return mixed, True
+
     def fit(self):
         """
         The training loop of PPO.
@@ -1453,7 +1565,11 @@ class RayPPOTrainer(object):
                                             teacher_lp = self._compute_teacher_log_probs(batch)
                                             batch = batch.union(teacher_lp)
 
-                            if not self.config.actor_rollout_ref.actor.use_kl_loss and not _uses_self_distillation(self.config):
+                            if (
+                                not self.config.actor_rollout_ref.actor.use_kl_loss
+                                and not _uses_self_distillation(self.config)
+                                and not _is_sft_mode(self.config)
+                            ):
                                 batch, kl_metrics = apply_kl_penalty(batch,
                                                                      kl_ctrl=self.kl_ctrl,
                                                                      kl_penalty=self.config.algorithm.kl_penalty)
@@ -1484,8 +1600,12 @@ class RayPPOTrainer(object):
                         with _timer('update_actor', timing_raw):
                             if self.config.do_search and self.config.actor_rollout_ref.actor.state_masking:
                                 batch, metrics = self._create_loss_mask(batch, metrics)
-                            actor_batch, should_update_actor = self._filter_and_rebalance_sdpo_actor_batch(
-                                batch, metrics)
+                            if _is_sft_mode(self.config):
+                                actor_batch, should_update_actor = self._filter_and_rebalance_sft_actor_batch(
+                                    batch, metrics)
+                            else:
+                                actor_batch, should_update_actor = self._filter_and_rebalance_sdpo_actor_batch(
+                                    batch, metrics)
                             if should_update_actor and _distill_inactive_samples_with_external_ref(self.config):
                                 actor_batch.batch['self_distillation_mask'] = torch.ones_like(
                                     actor_batch.batch['self_distillation_mask'])
